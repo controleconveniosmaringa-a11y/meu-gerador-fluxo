@@ -2,7 +2,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 import google.generativeai as genai
 
-# 1. Configuração da página com o novo nome limpo e Modo Largo
+# 1. Configuração da página
 st.set_page_config(
     page_title="Gerador de Fluxogramas",
     page_icon="📊",
@@ -25,7 +25,7 @@ except:
 
 modelo = genai.GenerativeModel(modelo_valido)
 
-# 4. BARRA LATERAL (Configurações visuais discretas)
+# 4. BARRA LATERAL
 with st.sidebar:
     st.image("https://cdn-icons-png.flaticon.com/512/3208/3208723.png", width=70)
     st.title("Configurações")
@@ -42,72 +42,70 @@ with st.sidebar:
         "Altura da Tela (Pixels):", 
         min_value=400, 
         max_value=2000, 
-        value=700, 
+        value=800, 
         step=100
     )
 
-# 5. ÁREA PRINCIPAL (Título atualizado)
+# 5. ÁREA PRINCIPAL
 st.title("Gerador de Fluxogramas 📊")
-st.write("Descreva o seu processo e a IA criará um diagrama profissional, colorido e categorizado.")
+st.write("Descreva o seu processo e a IA criará um diagrama profissional, colorido e sem cortes.")
 
 tipo_grafico = "graph TD" if "Vertical" in orientacao else "graph LR"
-texto_usuario = st.text_area("Descreva o seu processo aqui:", height=150, placeholder="Ex: O cliente solicita o suporte, o técnico analisa o caso...")
+texto_usuario = st.text_area("Descreva o seu processo aqui:", height=150, placeholder="Ex: O cliente solicita o suporte...")
 
 if st.button("Gerar Fluxograma Profissional", type="primary"):
     if texto_usuario.strip() == "":
         st.warning("Por favor, insira a descrição de um processo.")
     else:
-        # PROMPT AVANÇADO: Força a quebra de texto (<br/>) e a aplicação de cores por contexto
+        # PROMPT BLINDADO: Força o uso de IDs simples (A, B, C) para evitar o Syntax Error
         prompt_secreto = f"""
-        Você é um designer especialista em diagramas Mermaid.js corporativos.
-        Transforme o texto fornecido em um código Mermaid do tipo '{tipo_grafico}'.
+        Você é um gerador estrito de código Mermaid.js funcional, sem erros de sintaxe.
+        Transforme o texto fornecido em um diagrama válido do tipo '{tipo_grafico}'.
         
-        REGRAS CRÍTICAS DE DESIGN E TEXTO (PARA NÃO CORTAR):
-        1. QUEBRA DE TEXTO: Para garantir que o texto NÃO fique cortado nas laterais das caixas, você deve quebrar as linhas manualmente usando a tag <br/> se a frase tiver mais de 2 ou 3 palavras. 
-           Exemplo ruim: A["Verificar a documentação enviada"]
-           Exemplo perfeito para não cortar: A["Verificar a<br/>documentação enviada"]
+        REGRAS DE SINTAXE OBRIGATÓRIAS (PARA EVITAR SYNTAX ERROR):
+        1. IDENTIFICADORES DOS NÓS: Use APENAS letras simples sequenciais como IDs das caixas (A, B, C, D, E, F, G, etc.). Nunca use palavras do texto ou espaços como IDs.
+        2. TEXTOS COM ASPAS: Todo texto descritivo dentro das caixas DEVE estar entre aspas duplas, ex: A["Texto"].
+        3. QUEBRA DE LINHA INTERNA: Para o texto não cortar, insira a tag <br/> a cada duas ou três palavras dentro das aspas. Exemplo: A["Verificar o<br/>saldo bancário"].
         
-        2. FORMATOS GEOMÉTRICOS:
-           - Início/Fim do fluxo: Use cantos arredondados, ex: ID([Texto])
-           - Decisões/Perguntas: Use losangos, ex: ID{{Texto}}
-           - Sistemas/Bancos de dados: Use cilindros, ex: ID[(Texto)]
-           - Etapas normais: Use retângulos, ex: ID[Texto]
+        FORMATOS E ESTILOS COMPATÍVEIS (Injete a classe no próprio nó para evitar falhas):
+        - Início ou Fim do fluxo: Use formato arredondado e classe inicio. Ex: A(["fa:fa-play Início"]):::inicio
+        - Etapas/Ações comuns: Use retângulo e classe processo. Ex: B["fa:fa-gear Ação"]:::processo
+        - Decisões/Perguntas: Use losango e classe decisao. Ex: C{{"fa:fa-question Pergunta?"}}:::decisao
+        - Resultados de Sucesso: Use formato arredondado e classe sucesso. Ex: D(["fa:fa-check Sucesso"]):::sucesso
+        - Erros ou Falhas: Use formato arredondado e classe erro. Ex: E(["fa:fa-triangle-exclamation Falha"]):::erro
+        - Servidores/Bancos de Dados: Use cilindro e classe processo. Ex: F[("fa:fa-database Servidor")]:::processo
         
-        3. SISTEMA DE CORES PROFISSIONAL (Adicione estas definições exatas no FINAL do código):
-           classDef inicio fill:#e8eaf6,stroke:#3f51b5,stroke-width:2px,color:#1a237e;
-           classDef processo fill:#e0f2f1,stroke:#009688,stroke-width:2px,color:#004d40;
-           classDef decisao fill:#fff3e0,stroke:#ff9800,stroke-width:2px,color:#e65100;
-           classDef sucesso fill:#e8f5e9,stroke:#4caf50,stroke-width:2px,color:#1b5e20;
-           classDef erro fill:#ffebee,stroke:#f44336,stroke-width:2px,color:#b71c1c;
-           
-           Aplique as classes aos nós de forma lógica no fim do código (Ex: class A processo; class B decisao;):
-           - Nós de início ou fim -> classe 'inicio' (Azul)
-           - Etapas e ações comuns -> classe 'processo' (Verde-água)
-           - Caixas de decisão/perguntas -> classe 'decisao' (Laranja)
-           - Resultados de sucesso/conclusão -> classe 'sucesso' (Verde)
-           - Caminhos de erro, falhas ou rejeição -> classe 'erro' (Vermelho)
+        DEFINIÇÃO DAS CLASSES DE ESTILO (Coloque exatamente estas linhas no final do código):
+        classDef inicio fill:#e8eaf6,stroke:#3f51b5,stroke-width:2px,color:#1a237e;
+        classDef processo fill:#e0f2f1,stroke:#009688,stroke-width:2px,color:#004d40;
+        classDef decisao fill:#fff3e0,stroke:#ff9800,stroke-width:2px,color:#e65100;
+        classDef sucesso fill:#e8f5e9,stroke:#4caf50,stroke-width:2px,color:#1b5e20;
+        classDef erro fill:#ffebee,stroke:#f44336,stroke-width:2px,color:#b71c1c;
         
-        4. ÍCONES (FontAwesome v6):
-           Insira ícones nas caixas se fizer sentido com o contexto, ex: "fa:fa-user Cliente", "fa:fa-file Documento", "fa:fa-envelope Email".
-        
-        Não dê nenhuma explicação ou introdução. Retorne APENAS o código puro do Mermaid.
+        Não dê explicações ou introduções. Retorne APENAS o código limpo do Mermaid.
         Texto do usuário: {texto_usuario}
         """
         
         try:
             with st.spinner("Estruturando o layout e aplicando paleta de cores..."):
                 resposta_ia = modelo.generate_content(prompt_secreto)
+                
+                # Limpeza cirúrgica do texto para extrair apenas o código válido
                 codigo_mermaid = resposta_ia.text.replace("```mermaid", "").replace("```", "").strip()
+                
+                # Exibe uma ferramenta de inspecionar código para ajudar no desenvolvimento
+                with st.expander("⚙️ Verificar Código Gerado (Debug / Photoshop)"):
+                    st.code(codigo_mermaid, language="mermaid")
                 
                 use_max_width = "false" if "Horizontal" in orientacao else "true"
                 
-                # HTML limpo com injeção de fontes modernas e FontAwesome
+                # HTML robusto integrado
                 html_mermaid = f"""
                     <html>
                     <head>
                         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
                         <style>
-                            body {{ margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: transparent; }}
+                            body {{ margin: 0; padding: 0; font-family: sans-serif; background-color: transparent; }}
                             .container {{ position: relative; width: 100%; height: 100%; }}
                             .btn-download {{
                                 position: absolute;
@@ -123,7 +121,6 @@ if st.button("Gerar Fluxograma Profissional", type="primary"):
                                 cursor: pointer;
                                 box-shadow: 0 2px 5px rgba(0,0,0,0.15);
                                 z-index: 9999;
-                                transition: background 0.2s;
                             }}
                             .btn-download:hover {{ background-color: #0d1442; }}
                         </style>
@@ -141,7 +138,7 @@ if st.button("Gerar Fluxograma Profissional", type="primary"):
                             import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
                             mermaid.initialize({{ 
                                 startOnLoad: true, 
-                                theme: 'null', /* Desativa o tema padrão para usar nossas classes customizadas */
+                                theme: 'null',
                                 flowchart: {{ useMaxWidth: {use_max_width}, htmlLabels: true }}
                             }});
                         </script>
@@ -165,7 +162,7 @@ if st.button("Gerar Fluxograma Profissional", type="primary"):
                                     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
                                     
                                     const a = document.createElement('a');
-                                    a.download = 'fluxograma_colorido.png';
+                                    a.download = 'fluxograma_profissional.png';
                                     a.href = canvas.toDataURL('image/png');
                                     a.click();
                                 }};
