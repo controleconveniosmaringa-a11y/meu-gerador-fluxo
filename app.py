@@ -30,14 +30,13 @@ if st.button("Gerar Fluxograma"):
     if texto_usuario.strip() == "":
         st.warning("Por favor, digite um processo na caixa de texto primeiro.")
     else:
-        # PROMPT REFORÇADO: Exige o fluxo COMPLETO e muda para 'graph LR' (Esquerda para Direita)
         prompt_secreto = f"""
         Você é um especialista em criar diagramas Mermaid.js profissionais.
         Transforme o seguinte texto em um código Mermaid do tipo 'graph LR' (da esquerda para a direita).
         
-        ATENÇÃO CRÍTICA: Você deve ler o texto ATÉ O FINAL. Mapeie absolutamente todas as etapas mencionadas, incluindo as bifurcações de erro, loops de retorno e telas de sucesso. Não resuma e não pare na metade.
+        ATENÇÃO: Mapeie todas as etapas mencionadas, incluindo as bifurcações de erro, loops de retorno e telas de sucesso. Não pare na metade.
         
-        Não me dê explicações, me devolva APENAS o código puro do gráfico dentro da estrutura do Mermaid.
+        Não me dê explicações, me devolva APENAS o código puro do gráfico.
         Texto do usuário: {texto_usuario}
         """
         
@@ -46,19 +45,22 @@ if st.button("Gerar Fluxograma"):
                 resposta_ia = modelo.generate_content(prompt_secreto)
                 codigo_mermaid = resposta_ia.text.replace("```mermaid", "").replace("```", "").strip()
                 
-                # Configuração visual com rolagem ativada (scrolling=True)
+                # CORREÇÃO CRÍTICA: flowchart: {{ useMaxWidth: false }} impede que o gráfico encolha
                 html_mermaid = f"""
-                    <div style="overflow: auto; width: 100%; height: 100%;">
+                    <div style="overflow: auto; width: 100%; height: 550px; padding: 10px; border: 1px solid #eeeeee; border-radius: 5px;">
                         <script type="module">
                             import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
-                            mermaid.initialize({{ startOnLoad: true, theme: 'base' }});
+                            mermaid.initialize({{ 
+                                startOnLoad: true, 
+                                theme: 'base',
+                                flowchart: {{ useMaxWidth: false }} 
+                            }});
                         </script>
                         <div class="mermaid">
                             {codigo_mermaid}
                         </div>
                     </div>
                 """
-                # Adicionado scrolling=True para permitir navegar pelo gráfico se ele crescer
                 components.html(html_mermaid, height=600, scrolling=True)
                 
         except Exception as e:
