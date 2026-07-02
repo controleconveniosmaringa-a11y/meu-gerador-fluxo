@@ -1,19 +1,26 @@
 import streamlit as st
 import streamlit.components.v1 as components
 import google.generativeai as genai
+import json
 
+# ==========================================
 # 1. CONFIGURAÇÃO INICIAL DA PÁGINA
+# ==========================================
 st.set_page_config(
     page_title="Gerador de Fluxogramas",
     page_icon="📊",
     layout="wide"
 )
 
-# Inicializa a memória para o Modo Manual
+# Inicializa a memória principal do sistema
+if "nome_projeto" not in st.session_state:
+    st.session_state.nome_projeto = None
 if "etapas_manuais" not in st.session_state:
     st.session_state.etapas_manuais = []
 
-# Configuração da IA
+# ==========================================
+# 2. CONFIGURAÇÃO DA IA E FUNÇÕES (Escondidas no fundo)
+# ==========================================
 genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
 
 modelo_valido = "gemini-1.5-flash"
@@ -33,7 +40,6 @@ def gerar_grafico_ia(prompt):
     resposta = modelo.generate_content(prompt)
     return resposta.text.replace("```mermaid", "").replace("```", "").strip()
 
-# 2. FUNÇÃO CENTRAL DE RENDERIZAÇÃO
 def renderizar_mermaid(codigo_mermaid, orientacao_tela, altura_tela):
     use_max_width = "false" if "Horizontal" in orientacao_tela else "true"
     html_mermaid = f"""
@@ -60,36 +66,26 @@ def renderizar_mermaid(codigo_mermaid, orientacao_tela, altura_tela):
                     {codigo_mermaid}
                 </div>
             </div>
-
             <script type="module">
                 import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
-                mermaid.initialize({{ 
-                    startOnLoad: true, 
-                    theme: 'null',
-                    flowchart: {{ useMaxWidth: {use_max_width}, htmlLabels: true }}
-                }});
+                mermaid.initialize({{ startOnLoad: true, theme: 'null', flowchart: {{ useMaxWidth: {use_max_width}, htmlLabels: true }} }});
             </script>
-
             <script>
                 function baixarFluxograma() {{
                     const svg = document.querySelector('.mermaid svg');
                     if (!svg) {{ alert('Aguarde o gráfico carregar.'); return; }}
-                    
                     const svgData = new XMLSerializer().serializeToString(svg);
                     const canvas = document.createElement('canvas');
                     const ctx = canvas.getContext('2d');
                     const img = new Image();
-                    
                     canvas.width = svg.getBoundingClientRect().width * 2;
                     canvas.height = svg.getBoundingClientRect().height * 2;
-                    
                     img.onload = function() {{
                         ctx.fillStyle = '#ffffff';
                         ctx.fillRect(0, 0, canvas.width, canvas.height);
                         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                        
                         const a = document.createElement('a');
-                        a.download = 'fluxograma_profissional.png';
+                        a.download = 'meu_fluxograma.png';
                         a.href = canvas.toDataURL('image/png');
                         a.click();
                     }};
@@ -101,155 +97,195 @@ def renderizar_mermaid(codigo_mermaid, orientacao_tela, altura_tela):
     """
     components.html(html_mermaid, height=altura_tela, scrolling=True)
 
-
-# 3. BARRA LATERAL
-with st.sidebar:
-    st.image("https://cdn-icons-png.flaticon.com/512/3208/3208723.png", width=70)
-    st.title("Configurações")
-    st.write("Ajuste a visualização do gráfico.")
+# ==========================================
+# 3. TELA INICIAL (SPLASH SCREEN)
+# ==========================================
+# Se não houver nome do projeto, mostra a tela de boas-vindas bloqueando o resto
+if st.session_state.nome_projeto is None:
+    st.title("Bem-vindo ao Gerador de Fluxogramas 📊")
+    st.write("Crie diagramas profissionais com Inteligência Artificial ou construa manualmente passo a passo.")
     st.divider()
     
-    orientacao = st.selectbox("Direção do Layout:", ["Cima para Baixo (Vertical)", "Esquerda para Direita (Horizontal)"])
-    altura_grafico = st.slider("Altura da Tela (Pixels):", 400, 2000, 700, 100)
-
-tipo_grafico_mermaid = "graph TD" if "Vertical" in orientacao else "graph LR"
-
-
-# 4. ÁREA PRINCIPAL
-st.title("Plataforma de Fluxogramas 📊")
-
-modo_criacao = st.radio(
-    "Escolha o motor de criação:",
-    ["🤖 Automático (Inteligência Artificial)", "⚙️ Manual (Construtor Passo a Passo)"],
-    horizontal=True
-)
-
-st.divider()
-
-# --- MODO 1: IA ---
-if "Automático" in modo_criacao:
-    st.write("### Modo Inteligente")
-    texto_usuario = st.text_area("Descreva o seu processo aqui:", height=150)
-
-    if st.button("Gerar Fluxograma por IA", type="primary"):
-        if texto_usuario.strip() == "":
-            st.warning("Por favor, insira a descrição de um processo.")
-        else:
-            prompt_secreto = f"Seu prompt de IA padrão aqui... Texto: {texto_usuario}"
-            try:
-                with st.spinner("Desenhando..."):
-                    codigo_gerado = gerar_grafico_ia(prompt_secreto)
-                    renderizar_mermaid(codigo_gerado, orientacao, altura_grafico)
-            except Exception as e:
-                st.error(f"Erro: {e}")
-
-# --- MODO 2: CONSTRUTOR MANUAL (COM FUNÇÃO EDITAR E REMOVER) ---
-else:
-    st.write("### Modo Construtor (100% Gratuito)")
+    col1, col2 = st.columns(2)
     
-    # Criamos abas para organizar a inserção/edição da remoção
-    aba_inserir, aba_remover = st.tabs(["➕ Adicionar / Editar Etapa", "❌ Remover Etapa Específica"])
-    
-    with aba_inserir:
-        col1, col2, col3 = st.columns([1, 3, 2])
-        with col1:
-            id_etapa = st.text_input("ID (Ex: A)", max_chars=2, key="id_ins").upper().strip()
-        with col2:
-            texto_etapa = st.text_input("Texto da Ação:", key="txt_ins")
-        with col3:
-            tipo_etapa = st.selectbox(
-                "Categoria da Ação:", 
-                ["Processo Comum (Verde-água)", "Início ou Fim (Azul)", "Decisão / Pergunta (Laranja)", "Sucesso (Verde)", "Erro / Falha (Vermelho)"],
-                key="tipo_ins"
-            )
-        
-        proxima_ligacao = st.text_input("Liga ao ID: (Opcional, ex: B)", key="lig_ins").upper().replace(" ", "")
-
-        if st.button("💾 Salvar / Atualizar Etapa", type="primary"):
-            if id_etapa and texto_etapa:
-                # LÓGICA DE EDIÇÃO: Verifica se o ID já existe na memória
-                id_existente = False
-                for i, etapa in enumerate(st.session_state.etapas_manuais):
-                    if etapa["id"] == id_etapa:
-                        # Se já existe, substitui os dados antigos pelos novos (Edição)
-                        st.session_state.etapas_manuais[i] = {
-                            "id": id_etapa,
-                            "texto": texto_etapa,
-                            "tipo": tipo_etapa,
-                            "proxima": proxima_ligacao
-                        }
-                        id_existente = True
-                        st.success(f"Etapa {id_etapa} editada e atualizada com sucesso!")
-                        break
-                
-                # Se não existir, adiciona normalmente
-                if not id_existente:
-                    st.session_state.etapas_manuais.append({
-                        "id": id_etapa,
-                        "texto": texto_etapa,
-                        "tipo": tipo_etapa,
-                        "proxima": proxima_ligacao
-                    })
-                    st.success(f"Etapa {id_etapa} criada com sucesso!")
-                st.rerun()
+    # OPÇÃO 1: CRIAR UM PROJETO DO ZERO
+    with col1:
+        st.write("### ✨ Novo Projeto")
+        novo_nome = st.text_input("Qual será o nome deste projeto?", placeholder="Ex: Fluxo de Contratação RH")
+        if st.button("Criar Área de Trabalho", type="primary"):
+            if novo_nome.strip() != "":
+                st.session_state.nome_projeto = novo_nome
+                st.session_state.etapas_manuais = []
+                st.rerun() # Atualiza a página para entrar na área de trabalho
             else:
-                st.warning("Preencha o ID e o Texto antes de salvar.")
-
-    with aba_remover:
-        st.write("Digite o ID da caixa que deseja apagar do fluxo:")
-        id_para_remover = st.text_input("ID para remover (Ex: B):", max_chars=2).upper().strip()
-        if st.button("🗑️ Apagar esta Etapa"):
-            if id_para_remover:
-                # Filtra a lista mantendo apenas o que for diferente do ID digitado
-                lista_filtrada = [et for et in st.session_state.etapas_manuais if et["id"] != id_para_remover]
+                st.warning("Por favor, digite um nome para o projeto.")
                 
-                if len(lista_filtrada) < len(st.session_state.etapas_manuais):
-                    st.session_state.etapas_manuais = lista_filtrada
-                    st.success(f"Etapa {id_para_remover} removida com sucesso!")
+    # OPÇÃO 2: CARREGAR PROJETO SALVO NO COMPUTADOR
+    with col2:
+        st.write("### 📂 Continuar Projeto (Carregar)")
+        arquivo_enviado = st.file_uploader("Suba o arquivo .json do seu projeto salvo:", type=["json"])
+        if arquivo_enviado is not None:
+            if st.button("Abrir Projeto"):
+                try:
+                    dados = json.load(arquivo_enviado)
+                    # O sistema aceita dados antigos (só lista) ou o novo formato estruturado
+                    if isinstance(dados, list):
+                        st.session_state.nome_projeto = "Projeto Restaurado"
+                        st.session_state.etapas_manuais = dados
+                    else:
+                        st.session_state.nome_projeto = dados.get("nome", "Projeto Sem Nome")
+                        st.session_state.etapas_manuais = dados.get("etapas", [])
+                    st.success("Projeto carregado! Entrando na área de trabalho...")
+                    st.rerun()
+                except Exception as e:
+                    st.error("Arquivo inválido ou corrompido.")
+
+# ==========================================
+# 4. ÁREA DE TRABALHO (WORKSPACE PRINCIPAL)
+# ==========================================
+# O código abaixo só aparece se o usuário já tiver escolhido o nome do projeto
+else:
+    # Cabeçalho do Projeto
+    col_titulo, col_sair = st.columns([4, 1])
+    with col_titulo:
+        st.title(f"📁 Projeto: {st.session_state.nome_projeto}")
+    with col_sair:
+        st.write("") # Espaço para alinhar verticalmente
+        if st.button("🚪 Fechar Projeto", use_container_width=True):
+            st.session_state.nome_projeto = None
+            st.session_state.etapas_manuais = []
+            st.rerun()
+
+    # Barra lateral de configurações
+    with st.sidebar:
+        st.image("https://cdn-icons-png.flaticon.com/512/3208/3208723.png", width=70)
+        st.title("Configurações")
+        st.divider()
+        orientacao = st.selectbox("Direção do Layout:", ["Cima para Baixo (Vertical)", "Esquerda para Direita (Horizontal)"])
+        altura_grafico = st.slider("Altura da Tela (Pixels):", 400, 2000, 700, 100)
+    
+    tipo_grafico_mermaid = "graph TD" if "Vertical" in orientacao else "graph LR"
+
+    modo_criacao = st.radio(
+        "Modo de Criação:",
+        ["🤖 Automático (Inteligência Artificial)", "⚙️ Manual (Construtor Passo a Passo)"],
+        horizontal=True
+    )
+    st.divider()
+
+    # --- MODO 1: INTELIGÊNCIA ARTIFICIAL ---
+    if "Automático" in modo_criacao:
+        st.write("### Modo Inteligente")
+        texto_usuario = st.text_area("Descreva o seu processo aqui:", height=150)
+
+        if st.button("Gerar Fluxograma por IA", type="primary"):
+            if texto_usuario.strip() == "":
+                st.warning("Por favor, insira a descrição.")
+            else:
+                prompt_secreto = f"""
+                Você é um gerador de código Mermaid.js. Transforme o texto num diagrama '{tipo_grafico_mermaid}'.
+                1. IDs: Use letras simples.
+                2. Texto: Em aspas, sem parênteses. Quebre com <br/>.
+                3. Aplique as classes e cole as definições de cores padrão.
+                classDef inicio fill:#e8eaf6,stroke:#3f51b5,stroke-width:2px,color:#1a237e;
+                classDef processo fill:#e0f2f1,stroke:#009688,stroke-width:2px,color:#004d40;
+                classDef decisao fill:#fff3e0,stroke:#ff9800,stroke-width:2px,color:#e65100;
+                classDef sucesso fill:#e8f5e9,stroke:#4caf50,stroke-width:2px,color:#1b5e20;
+                classDef erro fill:#ffebee,stroke:#f44336,stroke-width:2px,color:#b71c1c;
+                Retorne APENAS o código.
+                Texto: {texto_usuario}
+                """
+                try:
+                    with st.spinner("Desenhando..."):
+                        codigo_gerado = gerar_grafico_ia(prompt_secreto)
+                        renderizar_mermaid(codigo_gerado, orientacao, altura_grafico)
+                except Exception as e:
+                    if "429" in str(e) or "quota" in str(e).lower():
+                        st.warning("⏳ Limite gratuito atingido. Aguarde 1 minuto e tente de novo.")
+                    else:
+                        st.error(f"Erro: {e}")
+
+    # --- MODO 2: CONSTRUTOR MANUAL E GESTÃO DE ARQUIVOS ---
+    else:
+        st.write("### Modo Construtor")
+        
+        aba_inserir, aba_remover, aba_salvar = st.tabs(["➕ Gerenciar Etapas", "❌ Apagar Etapa", "💾 Salvar Trabalho"])
+        
+        with aba_inserir:
+            col1, col2, col3 = st.columns([1, 3, 2])
+            with col1:
+                id_etapa = st.text_input("ID (Ex: A)", max_chars=2).upper().strip()
+            with col2:
+                texto_etapa = st.text_input("Texto da Ação:")
+            with col3:
+                tipo_etapa = st.selectbox("Categoria:", ["Processo Comum", "Início / Fim", "Decisão", "Sucesso", "Erro"])
+            proxima_ligacao = st.text_input("Liga ao ID: (Opcional)").upper().replace(" ", "")
+
+            if st.button("💾 Adicionar / Atualizar Etapa", type="primary"):
+                if id_etapa and texto_etapa:
+                    id_existente = False
+                    for i, etapa in enumerate(st.session_state.etapas_manuais):
+                        if etapa["id"] == id_etapa:
+                            st.session_state.etapas_manuais[i] = {"id": id_etapa, "texto": texto_etapa, "tipo": tipo_etapa, "proxima": proxima_ligacao}
+                            id_existente = True
+                            st.success("Etapa editada!")
+                            break
+                    if not id_existente:
+                        st.session_state.etapas_manuais.append({"id": id_etapa, "texto": texto_etapa, "tipo": tipo_etapa, "proxima": proxima_ligacao})
+                        st.success("Etapa criada!")
                     st.rerun()
                 else:
-                    st.error(f"O ID {id_para_remover} não foi encontrado no fluxo.")
+                    st.warning("Preencha o ID e o Texto.")
 
-    # Se existirem etapas, monta o gráfico dinamicamente
-    if len(st.session_state.etapas_manuais) > 0:
-        st.divider()
-        colA, colB = st.columns([4, 1])
-        with colA:
-            st.write("#### 📋 Tabela de Controle de Etapas")
-            # Mostra uma tabela simples para o usuário ver os IDs criados atualmente
+        with aba_remover:
+            id_para_remover = st.text_input("ID para remover (Ex: B):", max_chars=2).upper().strip()
+            if st.button("🗑️ Apagar Etapa"):
+                lista_nova = [et for et in st.session_state.etapas_manuais if et["id"] != id_para_remover]
+                if len(lista_nova) < len(st.session_state.etapas_manuais):
+                    st.session_state.etapas_manuais = lista_nova
+                    st.rerun()
+
+        with aba_salvar:
+            st.write(f"Baixe o arquivo de backup para não perder o projeto **{st.session_state.nome_projeto}** se fechar o site!")
+            if len(st.session_state.etapas_manuais) > 0:
+                # Agora o JSON guarda o nome do projeto e os dados juntos
+                dados_completos = {
+                    "nome": st.session_state.nome_projeto,
+                    "etapas": st.session_state.etapas_manuais
+                }
+                projeto_json = json.dumps(dados_completos, indent=4)
+                st.download_button(
+                    label="💾 Fazer Backup do Projeto (.json)",
+                    data=projeto_json,
+                    file_name=f"{st.session_state.nome_projeto.replace(' ', '_')}.json",
+                    mime="application/json",
+                    type="primary"
+                )
+
+        # Renderização do gráfico manual
+        if len(st.session_state.etapas_manuais) > 0:
+            st.divider()
+            st.write("#### 📋 Controle e Pré-visualização")
             st.dataframe(st.session_state.etapas_manuais, use_container_width=True)
-        with colB:
-            if st.button("💥 Resetar Todo o Fluxo", use_container_width=True):
-                st.session_state.etapas_manuais = []
-                st.rerun()
-
-        # Montagem do código Mermaid via Python
-        codigo_manual = f"{tipo_grafico_mermaid}\n"
-        codigo_manual += "classDef inicio fill:#e8eaf6,stroke:#3f51b5,stroke-width:2px,color:#1a237e;\n"
-        codigo_manual += "classDef processo fill:#e0f2f1,stroke:#009688,stroke-width:2px,color:#004d40;\n"
-        codigo_manual += "classDef decisao fill:#fff3e0,stroke:#ff9800,stroke-width:2px,color:#e65100;\n"
-        codigo_manual += "classDef sucesso fill:#e8f5e9,stroke:#4caf50,stroke-width:2px,color:#1b5e20;\n"
-        codigo_manual += "classDef erro fill:#ffebee,stroke:#f44336,stroke-width:2px,color:#b71c1c;\n"
-
-        for et in st.session_state.etapas_manuais:
-            texto_limpo = et["texto"].replace('"', "'")
-            if "Decisão" in et["tipo"]:
-                caixa = f'{et["id"]}{{"{texto_limpo}"}}:::decisao'
-            elif "Início" in et["tipo"]:
-                caixa = f'{et["id"]}(["{texto_limpo}"]):::inicio'
-            elif "Sucesso" in et["tipo"]:
-                caixa = f'{et["id"]}(["{texto_limpo}"]):::sucesso'
-            elif "Erro" in et["tipo"]:
-                caixa = f'{et["id"]}(["{texto_limpo}"]):::erro'
-            else:
-                caixa = f'{et["id"]}["{texto_limpo}"]:::processo'
-                
-            codigo_manual += f"    {caixa}\n"
             
-            if et["proxima"]:
-                ligacoes = et["proxima"].split(",")
-                for ligacao in ligacoes:
-                    if ligacao:
-                        codigo_manual += f'    {et["id"]} --> {ligacao}\n'
+            codigo_manual = f"{tipo_grafico_mermaid}\n"
+            codigo_manual += "classDef inicio fill:#e8eaf6,stroke:#3f51b5,stroke-width:2px,color:#1a237e;\n"
+            codigo_manual += "classDef processo fill:#e0f2f1,stroke:#009688,stroke-width:2px,color:#004d40;\n"
+            codigo_manual += "classDef decisao fill:#fff3e0,stroke:#ff9800,stroke-width:2px,color:#e65100;\n"
+            codigo_manual += "classDef sucesso fill:#e8f5e9,stroke:#4caf50,stroke-width:2px,color:#1b5e20;\n"
+            codigo_manual += "classDef erro fill:#ffebee,stroke:#f44336,stroke-width:2px,color:#b71c1c;\n"
 
-        renderizar_mermaid(codigo_manual, orientacao, altura_grafico)
+            for et in st.session_state.etapas_manuais:
+                texto = et["texto"].replace('"', "'")
+                if "Decisão" in et["tipo"]: cx = f'{et["id"]}{{"{texto}"}}:::decisao'
+                elif "Início" in et["tipo"]: cx = f'{et["id"]}(["{texto}"]):::inicio'
+                elif "Sucesso" in et["tipo"]: cx = f'{et["id"]}(["{texto}"]):::sucesso'
+                elif "Erro" in et["tipo"]: cx = f'{et["id"]}(["{texto}"]):::erro'
+                else: cx = f'{et["id"]}["{texto}"]:::processo'
+                
+                codigo_manual += f"    {cx}\n"
+                if et["proxima"]:
+                    for ligacao in et["proxima"].split(","):
+                        if ligacao: codigo_manual += f'    {et["id"]} --> {ligacao.strip()}\n'
+
+            renderizar_mermaid(codigo_manual, orientacao, altura_grafico)
