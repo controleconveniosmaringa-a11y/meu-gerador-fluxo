@@ -13,17 +13,32 @@ st.set_page_config(
     layout="wide"
 )
 
+# Inicializa a memória do sistema
 if "nome_projeto" not in st.session_state:
     st.session_state.nome_projeto = None
 if "etapas_manuais" not in st.session_state:
     st.session_state.etapas_manuais = []
 
-# Configuração da IA
+# ==========================================
+# 2. CONFIGURAÇÃO INTELIGENTE DA IA
+# ==========================================
 genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-modelo = genai.GenerativeModel("gemini-1.5-flash")
+
+# Sistema de Descoberta Automática (Evita o Erro 404)
+modelo_valido = "gemini-1.5-flash"
+try:
+    for m in genai.list_models():
+        if 'generateContent' in m.supported_generation_methods:
+            modelo_valido = m.name
+            if 'flash' in m.name:
+                break
+except:
+    pass
+
+modelo = genai.GenerativeModel(modelo_valido)
 
 # ==========================================
-# 2. FUNÇÕES DE RENDERIZAÇÃO
+# 3. FUNÇÕES DE RENDERIZAÇÃO E MATEMÁTICA
 # ==========================================
 def renderizar_mermaid(codigo_mermaid, orientacao_tela, altura_tela):
     use_max_width = "false" if "Horizontal" in orientacao_tela else "true"
@@ -95,6 +110,7 @@ def desenhar_grafico_da_memoria(orientacao, altura):
     codigo += "classDef erro fill:#ffebee,stroke:#f44336,stroke-width:2px,color:#b71c1c;\n"
 
     for et in st.session_state.etapas_manuais:
+        # Fatiador de texto para não estourar a largura da caixa
         if "<br/>" not in et["texto"]:
             palavras = et["texto"].split()
             pedacos = [" ".join(palavras[i:i+4]) for i in range(0, len(palavras), 4)]
@@ -119,7 +135,7 @@ def desenhar_grafico_da_memoria(orientacao, altura):
     renderizar_mermaid(codigo, orientacao, altura)
 
 # ==========================================
-# 3. TELA INICIAL
+# 4. TELA INICIAL (Boas-vindas)
 # ==========================================
 if st.session_state.nome_projeto is None:
     st.title("Bem-vindo ao Gerador de Fluxogramas 📊")
@@ -127,12 +143,14 @@ if st.session_state.nome_projeto is None:
     col1, col2 = st.columns(2)
     with col1:
         st.write("### ✨ Novo Projeto")
-        novo_nome = st.text_input("Qual será o nome deste projeto?")
+        novo_nome = st.text_input("Qual será o nome deste projeto?", placeholder="Ex: Abertura de Contas")
         if st.button("Criar Área de Trabalho", type="primary"):
             if novo_nome.strip() != "":
                 st.session_state.nome_projeto = novo_nome
                 st.session_state.etapas_manuais = []
                 st.rerun()
+            else:
+                st.warning("Por favor, digite um nome para o projeto.")
     with col2:
         st.write("### 📂 Continuar Projeto")
         arquivo = st.file_uploader("Suba o arquivo .json salvo:", type=["json"])
@@ -144,7 +162,7 @@ if st.session_state.nome_projeto is None:
                 st.rerun()
 
 # ==========================================
-# 4. ÁREA DE TRABALHO UNIFICADA
+# 5. ÁREA DE TRABALHO UNIFICADA
 # ==========================================
 else:
     col_titulo, col_sair = st.columns([4, 1])
@@ -166,6 +184,7 @@ else:
 
     st.write("Escolha uma ferramenta abaixo para inserir dados. O gráfico será atualizado em tempo real no final da página.")
 
+    # FERRAMENTAS
     aba_ia, aba_lista, aba_editar, aba_remover, aba_salvar = st.tabs([
         "🤖 Gerar com Inteligência Artificial", 
         "📝 Colar Lista Rápida", 
@@ -174,9 +193,11 @@ else:
         "💾 Salvar Projeto"
     ])
     
-    # FERRAMENTA 1: IA (MECANISMO DE EXTRAÇÃO ROBUSTO COM REGEX)
+    # -----------------------------------------------------
+    # ABA 1: IA COM BLINDAGEM JSON REGEX
+    # -----------------------------------------------------
     with aba_ia:
-        st.write("Descreva o seu processo corrido aqui. A IA vai montar o gráfico pronto para edição manual.")
+        st.write("Descreva o seu processo corrido aqui. A IA vai montar a base do gráfico.")
         texto_usuario = st.text_area("Descreva o processo para a IA:", height=100)
 
         if st.button("✨ Gerar Base com IA", type="primary"):
@@ -196,94 +217,5 @@ else:
                         resposta = modelo.generate_content(prompt_json)
                         texto_bruto = resposta.text
                         
-                        # --- MÁGICA DA BLINDAGEM AUTOMÁTICA ---
-                        # Captura cirurgicamente apenas o que está entre os colchetes do JSON [ ]
-                        match = re.search(r'\[.*\]', texto_bruto, re.DOTALL)
-                        if match:
-                            texto_limpo = match.group(0)
-                            st.session_state.etapas_manuais = json.loads(texto_limpo)
-                            st.rerun()
-                        else:
-                            st.error("A IA não retornou uma estrutura de dados compatível. Tente novamente.")
-                except Exception as e:
-                    if "429" in str(e) or "quota" in str(e).lower():
-                        st.warning("⏳ Limite gratuito atingido. Aguarde 1 minuto.")
-                    else:
-                        st.error(f"Erro ao processar: {e}")
-            else:
-                st.warning("Insira a descrição.")
-
-    # FERRAMENTA 2: LISTA RÁPIDA
-    with aba_lista:
-        lista_texto = st.text_area("Cole sua lista numerada de etapas aqui:", height=100)
-        if st.button("⚡ Transformar Lista em Gráfico"):
-            if lista_texto.strip() != "":
-                linhas = [l.strip() for l in lista_texto.split("\n") if l.strip()]
-                etapas_processadas = []
-                for idx, linha in enumerate(linhas):
-                    linha_limpa = re.sub(r'^\s*[0-9\s,e\–\-]+(?:-|\s|\.)\s*', '', linha).strip()
-                    linha_limpa = linha_limpa.replace("(", " - ").replace(")", "")
-                    id_atual = str(idx + 1)
-                    proxima = str(idx + 2) if idx < len(linhas) - 1 else ""
-                    tipo = "Processo Comum"
-                    linha_lower = inline = linha_limpa.lower()
-                    if "inicio" in linha_lower or "início" in linha_lower or "fim" in list(linha_lower)[:5] or "encerra" in linha_lower: tipo = "Início / Fim"
-                    elif "?" in linha_lower or "se " in linha_lower or "selecionar" in linha_lower: tipo = "Decisão"
-                    elif "erro" in linha_lower or "falha" in linha_lower or "rejeit" in linha_lower: tipo = "Erro"
-                    etapas_processadas.append({"id": id_atual, "texto": linha_limpa, "tipo": tipo, "proxima": proxima})
-                st.session_state.etapas_manuais = etapas_processadas
-                st.rerun()
-
-    # FERRAMENTA 3: EDITOR INDIVIDUAL
-    with aba_editar:
-        col1, col2, col3 = st.columns([1, 3, 2])
-        with col1:
-            id_etapa = st.text_input("ID (Ex: A ou 1)").upper().strip()
-        with col2:
-            texto_etapa = st.text_input("Texto da Ação:")
-        with col3:
-            tipo_etapa = st.selectbox("Categoria da Cor:", ["Processo Comum", "Início / Fim", "Decisão", "Sucesso", "Erro"])
-        proxima_ligacao = st.text_input("Liga ao ID: (Separe por vírgulas)").upper().replace(" ", "")
-
-        if st.button("💾 Inserir ou Atualizar Etapa"):
-            if id_etapa and texto_etapa:
-                id_existente = False
-                for i, etapa in enumerate(st.session_state.etapas_manuais):
-                    if etapa["id"] == id_etapa:
-                        st.session_state.etapas_manuais[i] = {"id": id_etapa, "texto": texto_etapa, "tipo": tipo_etapa, "proxima": proxima_ligacao}
-                        id_existente = True
-                        break
-                if not id_existente:
-                    st.session_state.etapas_manuais.append({"id": id_etapa, "texto": texto_etapa, "tipo": tipo_etapa, "proxima": proxima_ligacao})
-                st.rerun()
-
-    # FERRAMENTA 4: APAGAR
-    with aba_remover:
-        id_para_remover = st.text_input("ID para remover:").upper().strip()
-        if st.button("🗑️ Apagar Etapa"):
-            st.session_state.etapas_manuais = [et for et in st.session_state.etapas_manuais if et["id"] != id_para_remover]
-            st.rerun()
-
-    # FERRAMENTA 5: BACKUP
-    with aba_salvar:
-        if len(st.session_state.etapas_manuais) > 0:
-            dados_completos = {"nome": st.session_state.nome_projeto, "etapas": st.session_state.etapas_manuais}
-            st.download_button("💾 Backup do Projeto (.json)", json.dumps(dados_completos, indent=4), f"{st.session_state.nome_projeto.replace(' ', '_')}.json", "application/json", type="primary")
-
-    # ==========================================
-    # 5. O GRÁFICO E A TABELA (SEMPRE VISÍVEIS)
-    # ==========================================
-    if len(st.session_state.etapas_manuais) > 0:
-        st.divider()
-        colA, colB = st.columns([4, 1])
-        with colA:
-            st.write("#### 📋 O Seu Fluxograma")
-        with colB:
-            if st.button("💥 Limpar Tudo", use_container_width=True):
-                st.session_state.etapas_manuais = []
-                st.rerun()
-        
-        with st.expander("Ver Tabela de Dados"):
-            st.dataframe(st.session_state.etapas_manuais, use_container_width=True)
-            
-        desenhar_grafico_da_memoria(orientacao, altura_grafico)
+                        # Blindagem: Busca apenas o bloco JSON na resposta
+                        match = re.search(r'\[.*\]
