@@ -2,7 +2,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 import google.generativeai as genai
 import json
-import re  # Biblioteca nativa para limpar a numeração do texto
+import re
 
 # ==========================================
 # 1. CONFIGURAÇÃO INICIAL DA PÁGINA
@@ -13,7 +13,6 @@ st.set_page_config(
     layout="wide"
 )
 
-# Inicializa a memória do sistema
 if "nome_projeto" not in st.session_state:
     st.session_state.nome_projeto = None
 if "etapas_manuais" not in st.session_state:
@@ -97,7 +96,7 @@ def renderizar_mermaid(codigo_mermaid, orientacao_tela, altura_tela):
     components.html(html_mermaid, height=altura_tela, scrolling=True)
 
 # ==========================================
-# 3. TELA INICIAL (SPLASH SCREEN)
+# 3. TELA INICIAL
 # ==========================================
 if st.session_state.nome_projeto is None:
     st.title("Bem-vindo ao Gerador de Fluxogramas 📊")
@@ -108,7 +107,7 @@ if st.session_state.nome_projeto is None:
     
     with col1:
         st.write("### ✨ Novo Projeto")
-        novo_nome = st.text_input("Qual será o nome deste projeto?", placeholder="Ex: Fluxo de Abertura de Contas")
+        novo_nome = st.text_input("Qual será o nome deste projeto?", placeholder="Ex: Fluxo de Transferegov")
         if st.button("Criar Área de Trabalho", type="primary"):
             if novo_nome.strip() != "":
                 st.session_state.nome_projeto = novo_nome
@@ -136,7 +135,7 @@ if st.session_state.nome_projeto is None:
                     st.error("Arquivo inválido.")
 
 # ==========================================
-# 4. ÁREA DE TRABALHO (WORKSPACE PRINCIPAL)
+# 4. ÁREA DE TRABALHO (WORKSPACE)
 # ==========================================
 else:
     col_titulo, col_sair = st.columns([4, 1])
@@ -154,7 +153,7 @@ else:
         st.title("Configurações")
         st.divider()
         orientacao = st.selectbox("Direção do Layout:", ["Cima para Baixo (Vertical)", "Esquerda para Direita (Horizontal)"])
-        altura_grafico = st.slider("Altura da Tela (Pixels):", 400, 2000, 700, 100)
+        altura_grafico = st.slider("Altura da Tela (Pixels):", 400, 3000, 1000, 100) # Aumentei o máximo de altura para projetos gigantes
     
     tipo_grafico_mermaid = "graph TD" if "Vertical" in orientacao else "graph LR"
 
@@ -165,7 +164,7 @@ else:
     )
     st.divider()
 
-    # --- MODO 1: INTELIGÊNCIA ARTIFICIAL ---
+    # --- MODO IA ---
     if "Automático" in modo_criacao:
         st.write("### Modo Inteligente")
         texto_usuario = st.text_area("Descreva o seu processo corrido aqui:", height=150)
@@ -177,7 +176,7 @@ else:
                 prompt_secreto = f"""
                 Você é um gerador de código Mermaid.js. Transforme o texto num diagrama '{tipo_grafico_mermaid}'.
                 1. IDs: Use letras simples sequenciais (A, B, C...).
-                2. Texto: Em aspas, sem parênteses. Quebre com <br/> a cada 3 palavras para não cortar.
+                2. Texto: Em aspas, sem parênteses. Quebre com <br/> a cada 4 palavras para não cortar.
                 3. Aplique as classes e cole as definições de cores padrão.
                 classDef inicio fill:#e8eaf6,stroke:#3f51b5,stroke-width:2px,color:#1a237e;
                 classDef processo fill:#e0f2f1,stroke:#009688,stroke-width:2px,color:#004d40;
@@ -194,11 +193,10 @@ else:
                 except Exception as e:
                     st.error(f"Erro: {e}")
 
-    # --- MODO 2: CONSTRUTOR MANUAL COM IMPORTADOR DE LISTA ---
+    # --- MODO MANUAL (LISTA RÁPIDA CORRIGIDA) ---
     else:
         st.write("### Modo Construtor")
         
-        # ADICIONADA A NOVA ABA "📝 Colar Lista Rápida"
         aba_lista, aba_inserir, aba_remover, aba_salvar = st.tabs([
             "📝 Colar Lista Rápida (Recomendado)", 
             "➕ Adicionar / Editar Individual", 
@@ -206,64 +204,51 @@ else:
             "💾 Salvar Trabalho"
         ])
         
-        # --- LÓGICA DA NOVA ABA: PROCESSADOR DE TEXTO DIRETO ---
         with aba_lista:
-            st.write("Cole a sua lista de ações abaixo (uma por linha). O sistema vai linkar tudo em sequência de forma automática e gratuita!")
-            lista_texto = st.text_area("Cole sua lista de etapas aqui:", height=180, placeholder="1- Inicio\n2- Segov encaminha processo\n3- Redigir despacho...")
+            st.write("Cole a sua lista de ações. A nova versão fatiará o texto automaticamente para as caixas ficarem proporcionais.")
+            lista_texto = st.text_area("Cole sua lista de etapas aqui:", height=180)
             
             if st.button("⚡ Transformar Lista em Fluxograma", type="primary"):
                 if lista_texto.strip() != "":
-                    # Divide o texto colado linha por linha
                     linhas = [l.strip() for l in lista_texto.split("\n") if l.strip()]
                     etapas_processadas = []
                     
                     for idx, linha in enumerate(linhas):
-                        # LÓGICA DE LIMPEZA ANTI-ERRO:
-                        # 1. Remove numeração inicial automática (Ex: "1- ", "3 – ", "4. ")
-                        linha_limpa = re.sub(r'^\s*\d+\s*[\-\–\.]\s*', '', linha).strip()
-                        # 2. Transforma parênteses em hífens para o Mermaid não quebrar a sintaxe
+                        # NOVA REGEX BLINDADA: Tira números simples "1-" e números em grupo "19, 20 e 21 -"
+                        linha_limpa = re.sub(r'^\s*[0-9\s,e\–\-]+(?:-|\s|\.)\s*', '', linha).strip()
                         linha_limpa = linha_limpa.replace("(", " - ").replace(")", "")
                         
                         id_atual = str(idx + 1)
-                        # Define que a próxima etapa é o número seguinte da lista
                         proxima = str(idx + 2) if idx < len(linhas) - 1 else ""
                         
-                        # Tenta "adivinhar" a cor de forma inteligente baseada nas palavras
                         tipo = "Processo Comum"
                         linha_lower = linha_limpa.lower()
                         if "inicio" in linha_lower or "início" in linha_lower:
                             tipo = "Início / Fim"
                         elif "fim" in list(linha_lower)[:5] or "encerra" in linha_lower:
                             tipo = "Início / Fim"
-                        elif "?" in linha_lower or "se " in linha_lower:
+                        elif "?" in linha_lower or "se " in linha_lower or "selecionar" in linha_lower:
                             tipo = "Decisão"
                         elif "erro" in linha_lower or "falha" in linha_lower or "rejeit" in linha_lower:
                             tipo = "Erro"
                         
-                        etapas_processadas.append({
-                            "id": id_atual,
-                            "texto": linha_limpa,
-                            "tipo": tipo,
-                            "proxima": proxima
-                        })
+                        etapas_processadas.append({"id": id_atual, "texto": linha_limpa, "tipo": tipo, "proxima": proxima})
                     
-                    # Salva as etapas geradas na memória do Streamlit
                     st.session_state.etapas_manuais = etapas_processadas
-                    st.success("Lista processada com sucesso!")
+                    st.success("Lista processada sem quebrar o layout!")
                     st.rerun()
                 else:
                     st.warning("Cole uma lista de texto primeiro.")
 
         with aba_inserir:
-            st.write("Use este painel para fazer ajustes finos ou criar caminhos alternativos (bifurcações) nos itens gerados.")
             col1, col2, col3 = st.columns([1, 3, 2])
             with col1:
                 id_etapa = st.text_input("ID da Caixa (Ex: 1 ou 2)").upper().strip()
             with col2:
-                texto_etapa = st.text_input("Texto da Ação (Use <br/> para quebrar linhas manualmente):")
+                texto_etapa = st.text_input("Texto da Ação:")
             with col3:
                 tipo_etapa = st.selectbox("Categoria:", ["Processo Comum", "Início / Fim", "Decisão", "Sucesso", "Erro"])
-            proxima_ligacao = st.text_input("Liga ao ID: (Separe por vírgulas para caminhos múltiplos, ex: 3, 4)").upper().replace(" ", "")
+            proxima_ligacao = st.text_input("Liga ao ID: (Separe por vírgulas, ex: 3, 4)").upper().replace(" ", "")
 
             if st.button("💾 Gravar Ajuste na Etapa"):
                 if id_etapa and texto_etapa:
@@ -272,11 +257,9 @@ else:
                         if etapa["id"] == id_etapa:
                             st.session_state.etapas_manuais[i] = {"id": id_etapa, "texto": texto_etapa, "tipo": tipo_etapa, "proxima": proxima_ligacao}
                             id_existente = True
-                            st.success("Etapa atualizada com sucesso!")
                             break
                     if not id_existente:
                         st.session_state.etapas_manuais.append({"id": id_etapa, "texto": texto_etapa, "tipo": tipo_etapa, "proxima": proxima_ligacao})
-                        st.success("Nova etapa inserida!")
                     st.rerun()
 
         with aba_remover:
@@ -296,7 +279,9 @@ else:
                     type="primary"
                 )
 
-        # Renderização do gráfico manual gerado
+        # -------------------------------------------------------------
+        # RENDERIZAÇÃO MATEMÁTICA QUE FATIA FRASES GIGANTES (A SOLUÇÃO)
+        # -------------------------------------------------------------
         if len(st.session_state.etapas_manuais) > 0:
             st.divider()
             st.write("#### 📋 Painel de Edição e Pré-visualização")
@@ -314,14 +299,15 @@ else:
             codigo_manual += "classDef erro fill:#ffebee,stroke:#f44336,stroke-width:2px,color:#b71c1c;\n"
 
             for et in st.session_state.etapas_manuais:
-                # Trata automaticamente o texto inserido para adicionar quebras estéticas <br/> se a frase for longa
-                palavras = et["texto"].split()
-                if len(palavras) > 3 and "<br/>" not in et["texto"]:
-                    texto_final = " ".join(palavras[:3]) + "<br/>" + " ".join(palavras[3:])
+                # O NOVO FATIADOR DE FRASES (Quebra a cada 4 palavras repetidamente)
+                if "<br/>" not in et["texto"]:
+                    palavras = et["texto"].split()
+                    pedacos = [" ".join(palavras[i:i+4]) for i in range(0, len(palavras), 4)]
+                    texto_final = "<br/>".join(pedacos)
                 else:
                     texto_final = et["texto"]
                 
-                texto_final = texto_final.replace('"', "'")
+                texto_final = texto_final.replace('"', "'") # Tira aspas duplas que quebram código
                 
                 if "Decisão" in et["tipo"]: cx = f'{et["id"]}{{"{texto_final}"}}:::decisao'
                 elif "Início" in et["tipo"]: cx = f'{et["id"]}(["{texto_final}"]):::inicio'
@@ -330,6 +316,7 @@ else:
                 else: cx = f'{et["id"]}["{texto_final}"]:::processo'
                 
                 codigo_manual += f"    {cx}\n"
+                
                 if et["proxima"]:
                     for ligacao in et["proxima"].split(","):
                         if ligacao: codigo_manual += f'    {et["id"]} --> {ligacao.strip()}\n'
