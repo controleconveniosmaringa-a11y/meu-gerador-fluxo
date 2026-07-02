@@ -5,8 +5,8 @@ import google.generativeai as genai
 # 1. Conectando a sua chave NOVA (AQ...)
 genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
 
-# 2. Usando o modelo mais rápido e atualizado
-modelo = genai.GenerativeModel('gemini-1.5-flash')
+# 2. Usando o modelo universal e mais estável do Google
+modelo = genai.GenerativeModel('gemini-pro')
 
 # 3. Construção da Tela
 st.title("Gerador de Fluxogramas Automático 🤖")
@@ -41,4 +41,4 @@ if st.button("Gerar Fluxograma"):
                 """
                 components.html(html_mermaid, height=600)
         except Exception as e:
-            st.error(f"Ocorreu um erro: {e}")
+            st.error(f"Ocorreu um erro na IA: {e}")
