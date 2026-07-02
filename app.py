@@ -184,7 +184,7 @@ else:
 
     st.write("Escolha uma ferramenta abaixo para inserir dados. O gráfico será atualizado em tempo real no final da página.")
 
-    # FERRAMENTAS
+    # FERRAMENTAS EM ABAS
     aba_ia, aba_lista, aba_editar, aba_remover, aba_salvar = st.tabs([
         "🤖 Gerar com Inteligência Artificial", 
         "📝 Colar Lista Rápida", 
@@ -194,7 +194,7 @@ else:
     ])
     
     # -----------------------------------------------------
-    # ABA 1: IA COM BLINDAGEM JSON REGEX
+    # ABA 1: IA COM BLINDAGEM JSON REGEX (CORRIGIDA E FECHADA)
     # -----------------------------------------------------
     with aba_ia:
         st.write("Descreva o seu processo corrido aqui. A IA vai montar a base do gráfico.")
@@ -217,5 +217,42 @@ else:
                         resposta = modelo.generate_content(prompt_json)
                         texto_bruto = resposta.text
                         
-                        # Blindagem: Busca apenas o bloco JSON na resposta
-                        match = re.search(r'\[.*\]
+                        # Blindagem total com aspas e parênteses fechados corretamente
+                        match = re.search(r'\[.*\]', texto_bruto, re.DOTALL)
+                        if match:
+                            texto_limpo = match.group(0)
+                            st.session_state.etapas_manuais = json.loads(texto_limpo)
+                            st.rerun()
+                        else:
+                            st.error("A IA não retornou o formato correto. Tente gerar novamente.")
+                except Exception as e:
+                    if "429" in str(e) or "quota" in str(e).lower():
+                        st.warning("⏳ Limite gratuito atingido. Aguarde 1 minuto.")
+                    else:
+                        st.error(f"Erro ao processar: {e}")
+            else:
+                st.warning("Insira a descrição.")
+
+    # -----------------------------------------------------
+    # ABA 2: LISTA RÁPIDA (COM LIMPEZA MELHORADA)
+    # -----------------------------------------------------
+    with aba_lista:
+        lista_texto = st.text_area("Cole sua lista numerada de etapas aqui:", height=100)
+        if st.button("⚡ Transformar Lista em Gráfico"):
+            if lista_texto.strip() != "":
+                linhas = [l.strip() for l in lista_texto.split("\n") if l.strip()]
+                etapas_processadas = []
+                for idx, Secret_linha in enumerate(linhas):
+                    # Limpa números iniciais complexos
+                    linha_limpa = re.sub(r'^\s*[0-9\s,e\–\-]+(?:-|\s|\.)\s*', '', Secret_linha).strip()
+                    linha_limpa = linha_limpa.replace("(", " - ").replace(")", "")
+                    
+                    id_atual = str(idx + 1)
+                    proxima = str(idx + 2) if idx < len(linhas) - 1 else ""
+                    
+                    # Categoria inteligente
+                    tipo = "Processo Comum"
+                    linha_lower = linha_limpa.lower()
+                    if "inicio" in linha_lower or "início" in linha_lower or "fim" in list(linha_lower)[:5] or "encerra" in linha_lower: 
+                        tipo = "Início / Fim"
+                    elif "?" in linha_lower or "se " in linha_lower or "selecionar" in
