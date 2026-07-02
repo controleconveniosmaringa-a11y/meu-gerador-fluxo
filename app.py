@@ -110,36 +110,27 @@ def desenhar_grafico_da_memoria(orientacao, altura):
     codigo += "classDef erro fill:#ffebee,stroke:#f44336,stroke-width:2px,color:#b71c1c;\n"
 
     for et in st.session_state.etapas_manuais:
-        # Se por acaso vier uma linha vazia da tabela, ignora para não quebrar
-        if not et or "id" not in et:
-            continue
-            
-        if "<br/>" not in str(et["texto"]):
-            palavras = str(et["texto"]).split()
+        # Fatiador de texto para não estourar a largura da caixa
+        if "<br/>" not in et["texto"]:
+            palavras = et["texto"].split()
             pedacos = [" ".join(palavras[i:i+4]) for i in range(0, len(palavras), 4)]
             texto_final = "<br/>".join(pedacos)
         else:
-            texto_final = str(et["texto"])
+            texto_final = et["texto"]
         
         texto_final = texto_final.replace('"', "'") 
         
-        if "Decisão" in str(et["tipo"]): 
-            cx = f'{et["id"]}{{"{texto_final}"}}:::decisao'
-        elif "Início" in str(et["tipo"]): 
-            cx = f'{et["id"]}(["{texto_final}"]):::inicio'
-        elif "Sucesso" in str(et["tipo"]): 
-            cx = f'{et["id"]}(["{texto_final}"]):::sucesso'
-        elif "Erro" in str(et["tipo"]): 
-            cx = f'{et["id"]}(["{texto_final}"]):::erro'
-        else: 
-            cx = f'{et["id"]}["{texto_final}"]:::processo'
+        if "Decisão" in et["tipo"]: cx = f'{et["id"]}{{"{texto_final}"}}:::decisao'
+        elif "Início" in et["tipo"]: cx = f'{et["id"]}(["{texto_final}"]):::inicio'
+        elif "Sucesso" in et["tipo"]: cx = f'{et["id"]}(["{texto_final}"]):::sucesso'
+        elif "Erro" in et["tipo"]: cx = f'{et["id"]}(["{texto_final}"]):::erro'
+        else: cx = f'{et["id"]}["{texto_final}"]:::processo'
         
         codigo += f"    {cx}\n"
         
-        if "proxima" in et and et["proxima"]:
-            for ligacao in str(et["proxima"]).split(","):
-                if ligacao: 
-                    codigo += f'    {et["id"]} --> {ligacao.strip()}\n'
+        if et["proxima"]:
+            for ligacao in et["proxima"].split(","):
+                if ligacao: codigo += f'    {et["id"]} --> {ligacao.strip()}\n'
 
     renderizar_mermaid(codigo, orientacao, altura)
 
@@ -166,12 +157,8 @@ if st.session_state.nome_projeto is None:
         if arquivo:
             if st.button("Abrir Projeto"):
                 dados = json.load(arquivo)
-                if isinstance(dados, dict):
-                    st.session_state.nome_projeto = dados.get("nome", "Projeto Restaurado")
-                    st.session_state.etapas_manuais = dados.get("etapas", [])
-                else:
-                    st.session_state.nome_projeto = "Projeto Restaurado"
-                    st.session_state.etapas_manuais = dados
+                st.session_state.nome_projeto = dados.get("nome", "Projeto Restaurado") if isinstance(dados, dict) else "Projeto Restaurado"
+                st.session_state.etapas_manuais = dados.get("etapas", dados) if isinstance(dados, dict) else dados
                 st.rerun()
 
 # ==========================================
@@ -195,121 +182,145 @@ else:
         orientacao = st.selectbox("Direção do Layout:", ["Cima para Baixo (Vertical)", "Esquerda para Direita (Horizontal)"])
         altura_grafico = st.slider("Altura da Tela (Pixels):", 400, 3000, 1000, 100)
 
-    st.write("Insira dados pela IA ou Lista Rápida. Depois, edite tudo diretamente na planilha abaixo!")
+    st.write("Escolha uma ferramenta abaixo para inserir dados. O gráfico será atualizado em tempo real no final da página.")
 
-    # ABAS DE ENTRADA DE DADOS
-    aba_ia, aba_lista, aba_editar, aba_salvar = st.tabs([
-        "🤖 Injetar com Inteligência Artificial", 
-        "📝 Importar Lista Rápida", 
-        "➕ Adicionar Linha Avulsa", 
+    # FERRAMENTAS
+    aba_ia, aba_lista, aba_editar, aba_remover, aba_salvar = st.tabs([
+        "🤖 Gerar com Inteligência Artificial", 
+        "📝 Colar Lista Rápida", 
+        "✏️ Editar / Adicionar Etapa", 
+        "❌ Apagar", 
         "💾 Salvar Projeto"
     ])
     
-    # ABA 1: IA
+    # -----------------------------------------------------
+    # ABA 1: IA COM BLINDAGEM JSON REGEX
+    # -----------------------------------------------------
     with aba_ia:
-        texto_usuario = st.text_area("Descreva o processo para a IA construir a base:", height=100)
+        st.write("Descreva o seu processo corrido aqui. A IA vai montar a base do gráfico.")
+        texto_usuario = st.text_area("Descreva o processo para a IA:", height=100)
+
         if st.button("✨ Gerar Base com IA", type="primary"):
             if texto_usuario.strip() != "":
                 prompt_json = f"""
                 Analise o processo abaixo e extraia as etapas para um fluxograma.
                 Retorne APENAS um array JSON válido.
                 Estrutura de cada objeto no array:
-                - "id": Letras ou números sequenciais.
+                - "id": Letras sequenciais (A, B, C...)
                 - "texto": Resumo da ação (máximo 5 palavras).
                 - "tipo": "Processo Comum", "Início / Fim", "Decisão", "Sucesso" ou "Erro".
-                - "proxima": ID da próxima etapa.
+                - "proxima": ID da próxima etapa (separe por vírgula se for decisão, deixe "" se for fim).
                 Processo: {texto_usuario}
                 """
                 try:
-                    with st.spinner("A IA está estruturando as caixas..."):
+                    with st.spinner("A IA está desenhando as caixas e conexões..."):
                         resposta = modelo.generate_content(prompt_json)
                         texto_bruto = resposta.text
+                        
+                        # Blindagem: Busca apenas o bloco JSON na resposta
                         match = re.search(r'\[.*\]', texto_bruto, re.DOTALL)
                         if match:
-                            st.session_state.etapas_manuais = json.loads(match.group(0))
+                            texto_limpo = match.group(0)
+                            st.session_state.etapas_manuais = json.loads(texto_limpo)
                             st.rerun()
+                        else:
+                            st.error("A IA não retornou o formato correto. Tente gerar novamente.")
                 except Exception as e:
-                    st.error(f"Erro ao processar: {e}")
+                    if "429" in str(e) or "quota" in str(e).lower():
+                        st.warning("⏳ Limite gratuito atingido. Aguarde 1 minuto.")
+                    else:
+                        st.error(f"Erro ao processar: {e}")
+            else:
+                st.warning("Insira a descrição.")
 
-    # ABA 2: LISTA RÁPIDA
+    # -----------------------------------------------------
+    # ABA 2: LISTA RÁPIDA (COM LIMPEZA MELHORADA)
+    # -----------------------------------------------------
     with aba_lista:
-        lista_texto = st.text_area("Cole sua lista numerada aqui:", height=100)
+        lista_texto = st.text_area("Cole sua lista numerada de etapas aqui:", height=100)
         if st.button("⚡ Transformar Lista em Gráfico"):
             if lista_texto.strip() != "":
                 linhas = [l.strip() for l in lista_texto.split("\n") if l.strip()]
                 etapas_processadas = []
-                for idx, Secret_linha in enumerate(linhas):
-                    linha_limpa = re.sub(r'^\s*[0-9\s,e\–\-]+(?:-|\s|\.)\s*', '', Secret_linha).strip()
+                for idx, linha in enumerate(linhas):
+                    # Limpa números iniciais complexos
+                    linha_limpa = re.sub(r'^\s*[0-9\s,e\–\-]+(?:-|\s|\.)\s*', '', linha).strip()
                     linha_limpa = linha_limpa.replace("(", " - ").replace(")", "")
+                    
                     id_atual = str(idx + 1)
                     proxima = str(idx + 2) if idx < len(linhas) - 1 else ""
+                    
+                    # Categoria inteligente
                     tipo = "Processo Comum"
                     linha_lower = linha_limpa.lower()
-                    is_inicio = ("inicio" in linha_lower) or ("início" in linha_lower)
-                    is_fim = ("fim" in linha_lower[:5]) or ("encerra" in linha_lower)
-                    if is_inicio or is_fim:
+                    if "inicio" in linha_lower or "início" in linha_lower or "fim" in list(linha_lower)[:5] or "encerra" in linha_lower: 
                         tipo = "Início / Fim"
-                    elif ("?" in linha_lower) or ("se " in linha_lower) or ("selecionar" in linha_lower):
+                    elif "?" in linha_lower or "se " in linha_lower or "selecionar" in linha_lower: 
                         tipo = "Decisão"
-                    elif ("erro" in linha_lower) or ("falha" in linha_lower) or ("rejeit" in linha_lower):
+                    elif "erro" in linha_lower or "falha" in linha_lower or "rejeit" in linha_lower: 
                         tipo = "Erro"
+                        
                     etapas_processadas.append({"id": id_atual, "texto": linha_limpa, "tipo": tipo, "proxima": proxima})
+                
                 st.session_state.etapas_manuais = etapas_processadas
                 st.rerun()
 
-    # ABA 3: ADICIONAR AVULSA
+    # -----------------------------------------------------
+    # ABA 3: EDITOR INDIVIDUAL
+    # -----------------------------------------------------
     with aba_editar:
-        col1, col2 = st.columns(2)
+        col1, col2, col3 = st.columns([1, 3, 2])
         with col1:
-            id_novo = st.text_input("ID do novo nó:").upper().strip()
-            texto_novo = st.text_input("Texto do novo nó:")
+            id_etapa = st.text_input("ID (Ex: A ou 1)").upper().strip()
         with col2:
-            tipo_novo = st.selectbox("Tipo:", ["Processo Comum", "Início / Fim", "Decisão", "Sucesso", "Erro"])
-            prox_novo = st.text_input("Próximo ID:")
-        if st.button("➕ Inserir Linha na Planilha"):
-            if id_novo and texto_novo:
-                st.session_state.etapas_manuais.append({"id": id_novo, "texto": texto_novo, "tipo": tipo_novo, "proxima": prox_novo})
+            texto_etapa = st.text_input("Texto da Ação:")
+        with col3:
+            tipo_etapa = st.selectbox("Categoria da Cor:", ["Processo Comum", "Início / Fim", "Decisão", "Sucesso", "Erro"])
+        proxima_ligacao = st.text_input("Liga ao ID: (Separe por vírgulas)").upper().replace(" ", "")
+
+        if st.button("💾 Inserir ou Atualizar Etapa"):
+            if id_etapa and texto_etapa:
+                id_existente = False
+                for i, etapa in enumerate(st.session_state.etapas_manuais):
+                    if etapa["id"] == id_etapa:
+                        st.session_state.etapas_manuais[i] = {"id": id_etapa, "texto": texto_etapa, "tipo": tipo_etapa, "proxima": proxima_ligacao}
+                        id_existente = True
+                        break
+                if not id_existente:
+                    st.session_state.etapas_manuais.append({"id": id_etapa, "texto": texto_etapa, "tipo": tipo_etapa, "proxima": proxima_ligacao})
                 st.rerun()
 
-    # ABA 4: SALVAR
+    # -----------------------------------------------------
+    # ABA 4: REMOVER
+    # -----------------------------------------------------
+    with aba_remover:
+        id_para_remover = st.text_input("ID para remover:").upper().strip()
+        if st.button("🗑️ Apagar Etapa"):
+            st.session_state.etapas_manuais = [et for et in st.session_state.etapas_manuais if et["id"] != id_para_remover]
+            st.rerun()
+
+    # -----------------------------------------------------
+    # ABA 5: BACKUP
+    # -----------------------------------------------------
     with aba_salvar:
         if len(st.session_state.etapas_manuais) > 0:
             dados_completos = {"nome": st.session_state.nome_projeto, "etapas": st.session_state.etapas_manuais}
             st.download_button("💾 Backup do Projeto (.json)", json.dumps(dados_completos, indent=4), f"{st.session_state.nome_projeto.replace(' ', '_')}.json", "application/json", type="primary")
 
     # ==========================================
-    # 6. A SUPER PLANILHA EDITÁVEL (A MÁGICA AQUI)
+    # 6. O GRÁFICO E A TABELA (SEMPRE VISÍVEIS)
     # ==========================================
     if len(st.session_state.etapas_manuais) > 0:
         st.divider()
         colA, colB = st.columns([4, 1])
         with colA:
-            st.write("#### 📊 Planilha de Controle Direto (Dê dois cliques para editar)")
+            st.write("#### 📋 O Seu Fluxograma")
         with colB:
             if st.button("💥 Limpar Tudo", use_container_width=True):
                 st.session_state.etapas_manuais = []
                 st.rerun()
         
-        # O TRANSFORMATOR DE TABELA ESTÁTICA EM PLANILHA DINÂMICA
-        tabela_editavel = st.data_editor(
-            st.session_state.etapas_manuais,
-            use_container_width=True,
-            num_rows="dynamic", # Permite que você delete ou crie linhas direto na tabela!
-            column_config={
-                "id": st.column_config.TextColumn("ID do Nó", required=True),
-                "texto": st.column_config.TextColumn("Texto da Caixa", required=True),
-                "tipo": st.column_config.SelectboxColumn(
-                    "Categoria (Cor)",
-                    options=["Processo Comum", "Início / Fim", "Decisão", "Sucesso", "Erro"],
-                    required=True
-                ),
-                "proxima": st.column_config.TextColumn("Liga ao ID (Separe por vírgula para bifurcar)")
-            }
-        )
-        
-        # Se você alterar qualquer letra na tabela, salva na memória e redesenha na hora!
-        if tabela_editavel != st.session_state.etapas_manuais:
-            st.session_state.etapas_manuais = tabela_editavel
-            st.rerun()
+        with st.expander("Ver Tabela de Dados (Modo Avançado)"):
+            st.dataframe(st.session_state.etapas_manuais, use_container_width=True)
             
         desenhar_grafico_da_memoria(orientacao, altura_grafico)
