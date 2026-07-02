@@ -39,72 +39,71 @@ with st.sidebar:
     )
     
     altura_grafico = st.slider(
-        "Altura da Janela Visual (Pixels):", 
-        min_value=500, 
-        max_value=2500, 
-        value=900, # Aumentado o padrão para processos grandes
+        "Altura da Tela (Pixels):", 
+        min_value=400, 
+        max_value=2000, 
+        value=700, 
         step=100
     )
 
 # 5. ÁREA PRINCIPAL
 st.title("Gerador de Fluxogramas 📊")
-st.write("Descreva o seu processo e a IA criará um diagrama profissional, colorido e sem cortes.")
+st.write("Descreva o seu processo aqui e a IA criará um diagrama profissional, colorido e sem erros.")
 
 tipo_grafico = "graph TD" if "Vertical" in orientacao else "graph LR"
-texto_usuario = st.text_area("Descreva o seu processo aqui:", height=150, placeholder="Ex: O cliente solicita o suporte...")
+texto_usuario = st.text_area("Descreva o seu processo aqui:", height=150, placeholder="Ex: O analista recebe a solicitação...")
 
 if st.button("Gerar Fluxograma Profissional", type="primary"):
     if texto_usuario.strip() == "":
         st.warning("Por favor, insira a descrição de um processo.")
     else:
-        # PROMPT OTIMIZADO: Foco total em concluir o fluxo até ao fim sem travar
+        # PROMPT REFORÇADO: Remove parênteses do texto para evitar conflito de sintaxe
         prompt_secreto = f"""
-        Você é um gerador de código Mermaid.js especialista em processos complexos.
+        Você é um gerador estrito de código Mermaid.js funcional, sem erros de sintaxe.
         Transforme o texto fornecido em um diagrama válido do tipo '{tipo_grafico}'.
         
-        REGRAS CRÍTICAS DE DESIGN (SINTAXE PURA):
-        1. CONCLUSÃO ABSOLUTA: Você deve ler o texto até o final e garantir que o fluxo chegue até o último nó de encerramento. Não pare na metade.
-        2. IDENTIFICADORES: Use apenas letras simples sequenciais como IDs (A, B, C, D...).
-        3. QUEBRA DE LINHA: Use <br/> a cada duas ou três palavras dentro das aspas para o texto não cortar. Ex: A["Importar<br/>ficheiro XML"].
+        REGRAS DE SINTAXE OBRIGATÓRIAS (ANTI-ERRO):
+        1. IDENTIFICADORES DOS NÓS: Use APENAS letras simples sequenciais como IDs das caixas (A, B, C, D, E, F, etc.). Nunca use siglas ou palavras do texto como IDs.
+        2. TEXTOS COM ASPAS: Todo texto descritivo dentro das caixas DEVE estar entre aspas duplas, ex: A["Texto"].
+        3. PROIBIÇÃO DE PARÊNTESES NO TEXTO: Se o texto original contiver parênteses, como em "NFSEFAZ(tesouraria)", você deve REMOVER os parênteses ou substituí-los por hífens. Exemplo: "NFSEFAZ - tesouraria". Parênteses brutos dentro das caixas quebram o Mermaid.
+        4. QUEBRA DE LINHA: Insira a tag <br/> a cada duas ou três palavras dentro das aspas para o texto ficar bem diagramado e não cortar.
         
-        FORMATOS E ESTILOS COMPATÍVEIS:
+        FORMATOS E ESTILOS COMPATÍVEIS (Aplique a classe diretamente no nó):
         - Início ou Fim do fluxo: ID([Texto]):::inicio
         - Etapas/Ações comuns: ID[Texto]:::processo
         - Decisões/Perguntas: ID{{Texto}}:::decisao
         - Resultados de Sucesso: ID([Texto]):::sucesso
         - Erros ou Falhas: ID([Texto]):::erro
-        - Bancos de Dados/Sistemas: ID[("fa:fa-database Sistema")]:::processo
         
-        DEFINIÇÃO DAS CLASSES (Insira exatamente isto no final do código):
+        DEFINIÇÃO DAS CLASSES DE ESTILO:
         classDef inicio fill:#e8eaf6,stroke:#3f51b5,stroke-width:2px,color:#1a237e;
+        classDef depth fill:#e0f2f1,stroke:#009688,stroke-width:2px,color:#004d40;
         classDef processo fill:#e0f2f1,stroke:#009688,stroke-width:2px,color:#004d40;
         classDef decisao fill:#fff3e0,stroke:#ff9800,stroke-width:2px,color:#e65100;
         classDef sucesso fill:#e8f5e9,stroke:#4caf50,stroke-width:2px,color:#1b5e20;
         classDef erro fill:#ffebee,stroke:#f44336,stroke-width:2px,color:#b71c1c;
         
-        Não dê explicações. Retorne APENAS o código puro do Mermaid.
+        Não dê explicações ou introduções. Retorne APENAS o código puro do Mermaid.
         Texto do usuário: {texto_usuario}
         """
         
         try:
-            with st.spinner("Estruturando o layout e aplicando paleta de cores..."):
+            with st.spinner("Analisando dados e estruturando o fluxo..."):
                 resposta_ia = modelo.generate_content(prompt_secreto)
                 codigo_mermaid = resposta_ia.text.replace("```mermaid", "").replace("```", "").strip()
                 
-                # Exibe a ferramenta de Debug para validação
-                with st.expander("⚙️ Verificar Código Gerado (Debug / Photoshop)"):
+                with st.expander("⚙️ Verificar Código Gerado (Debug)"):
                     st.code(codigo_mermaid, language="mermaid")
                 
                 use_max_width = "false" if "Horizontal" in orientacao else "true"
                 
-                # HTML CORRIGIDO: Força a rolagem nativa no body se o conteúdo estourar a altura definida
                 html_mermaid = f"""
                     <html>
                     <head>
                         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
                         <style>
-                            html, body {{ margin: 0; padding: 0; background-color: transparent; overflow: auto; }}
-                            .container {{ position: relative; width: 100%; padding: 15px; box-sizing: border-box; }}
+                            body {{ margin: 0; padding: 0; font-family: sans-serif; background-color: transparent; }}
+                            .container {{ position: relative; width: 100%; height: 100%; }}
                             .btn-download {{
                                 position: absolute;
                                 top: 10px;
@@ -126,7 +125,7 @@ if st.button("Gerar Fluxograma Profissional", type="primary"):
                     <body>
                         <div class="container">
                             <button class="btn-download" onclick="baixarFluxograma()">📥 Baixar Imagem (PNG)</button>
-                            <div class="mermaid" style="margin-top: 40px;">
+                            <div class="mermaid">
                                 {codigo_mermaid}
                             </div>
                         </div>
@@ -159,7 +158,7 @@ if st.button("Gerar Fluxograma Profissional", type="primary"):
                                     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
                                     
                                     const a = document.createElement('a');
-                                    a.download = 'fluxograma_completo.png';
+                                    a.download = 'fluxograma_processo.png';
                                     a.href = canvas.toDataURL('image/png');
                                     a.click();
                                 }};
@@ -170,8 +169,7 @@ if st.button("Gerar Fluxograma Profissional", type="primary"):
                     </body>
                     </html>
                 """
-                # Renderiza o componente com scroll ativo e altura configurável pelo slider
                 components.html(html_mermaid, height=altura_grafico, scrolling=True)
                 
         except Exception as e:
-            st.error(f"Erro ao processar o design visual: {e}")
+            st.error(f"Erro ao processar o design: {e}")
