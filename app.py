@@ -4,7 +4,9 @@ import google.generativeai as genai
 
 # Puxando a chave do cofre (Secrets) do Streamlit
 genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-modelo = genai.GenerativeModel('gemini-1.5-pro')
+
+# ATUALIZADO: Usando o modelo flash, que é rápido e não dá o erro "Not Found"
+modelo = genai.GenerativeModel('gemini-1.5-flash')
 
 st.title("Gerador de Fluxogramas Automático 🤖")
 st.write("Descreva o seu processo e a IA criará o gráfico profissional!")
@@ -18,7 +20,7 @@ if st.button("Gerar Fluxograma"):
     prompt_secreto = f"""
     Você é um especialista em criar diagramas Mermaid.js.
     Transforme o seguinte texto em um código Mermaid do tipo 'graph TD'.
-    Não me dê explicações, me devolva APENAS o código do gráfico. Se houver etapas de sucesso ou erro, use cores discretas.
+    Não me dê explicações, me devolva APENAS o código do gráfico. Se houver etapas de sucesso ou erro, use cores discretas nas caixas.
     Texto do usuário: {texto_usuario}
     """
     
