@@ -2,13 +2,17 @@ import streamlit as st
 import streamlit.components.v1 as components
 import google.generativeai as genai
 
-# 1. Configuração da página para usar a tela cheia (Modo Largo)
-st.set_page_config(layout="wide")
+# 1. Configuração da página em Modo Largo (Tela Cheia)
+st.set_page_config(
+    page_title="Gerador de Fluxogramas Pro",
+    page_icon="🤖",
+    layout="wide"
+)
 
-# 2. Conectando a sua chave
+# 2. Conectando a sua chave do Gemini
 genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
 
-# 3. Descoberta automática do modelo
+# 3. Descoberta automática do modelo de IA
 modelo_valido = "gemini-1.5-flash"
 try:
     for m in genai.list_models():
@@ -21,64 +25,100 @@ except:
 
 modelo = genai.GenerativeModel(modelo_valido)
 
-# 4. Interface do Usuário
-st.title("Gerador de Fluxogramas Automático 🤖")
-st.write("Descreva o seu processo e ajuste o visual do gráfico como preferir!")
-
-# PAINEL DE CONTROLE (Deixa o site super profissional)
-st.write("### 🛠️ Configurações do Gráfico")
-col1, col2 = st.columns(2)
-
-with col1:
+# ==========================================
+# 4. BARRA LATERAL (DESIGN PROFISSIONAL)
+# ==========================================
+with st.sidebar:
+    st.image("https://cdn-icons-png.flaticon.com/512/3208/3208723.png", width=80)
+    st.title("Configurações Pro")
+    st.write("Ajuste o visual do seu gráfico em tempo real.")
+    
+    st.divider()
+    
     orientacao = st.selectbox(
-        "Direção do Fluxograma:", 
+        "Direção do Diagrama:", 
         ["Cima para Baixo (Vertical)", "Esquerda para Direita (Horizontal)"]
     )
-
-with col2:
+    
     altura_grafico = st.slider(
-        "Altura da área do gráfico (Aumente se o fluxo cortar!):", 
+        "Altura do Painel (Pixels):", 
         min_value=400, 
         max_value=2000, 
-        value=800, 
+        value=600, 
         step=100
     )
+    
+    st.divider()
+    st.info(f"⚡ Sistema operacional rodando com: {modelo_valido}")
 
-# Mapeia a escolha do usuário para o código que a IA vai usar
+# ==========================================
+# 5. ÁREA PRINCIPAL DA TELA
+# ==========================================
+st.title("Gerador de Fluxogramas Automático 🤖")
+st.write("Escreva o seu processo abaixo e deixe a IA cuidar do design corporativo.")
+
 tipo_grafico = "graph TD" if "Vertical" in orientacao else "graph LR"
+texto_usuario = st.text_area("Digite ou cole o seu processo aqui:", height=150, placeholder="Ex: O cliente faz o pedido, o financeiro aprova...")
 
-# Caixa de texto
-texto_usuario = st.text_area("Descreva o processo aqui:", height=120)
-
-if st.button("Gerar Fluxograma", type="primary"):
+if st.button("Gerar Fluxograma Avançado", type="primary"):
     if texto_usuario.strip() == "":
-        st.warning("Por favor, digite um processo na caixa de texto primeiro.")
+        st.warning("Por favor, digite um processo válido primeiro.")
     else:
         prompt_secreto = f"""
-        Você é um designer especialista em diagramas Mermaid.js profissionais.
+        Você é um designer sênior especialista em diagramas Mermaid.js corporativos.
         Transforme o seguinte texto em um código Mermaid do tipo '{tipo_grafico}'.
         
-        DIRETRIZES DE DESIGN:
-        - Organize o diagrama de forma limpa, compacta e equilibrada.
-        - Mapeie todas as etapas, decisões, caminhos de erro e sucesso do texto. Não pule nada.
-        - Use textos curtos dentro das caixas (no máximo 3 ou 4 palavras por caixa).
+        REGRAS VITAIS DE DESIGN:
+        - Mapeie TODAS as etapas do texto do início ao fim (erros, sucessos e retornos).
+        - Use textos curtíssimos dentro dos blocos (máximo 3 palavras por caixa).
         
-        Não dê explicações. Devolva APENAS o código puro do gráfico.
+        Não dê explicações, responda APENAS o código limpo.
         Texto do usuário: {texto_usuario}
         """
         
         try:
-            with st.spinner("Desenhando o fluxograma..."):
+            with st.spinner("Analisando processo e estruturando design gráfico..."):
                 resposta_ia = modelo.generate_content(prompt_secreto)
                 codigo_mermaid = resposta_ia.text.replace("```mermaid", "").replace("```", "").strip()
                 
-                # Se for horizontal, desativamos o max-width para não espremer as letras
                 use_max_width = "false" if "Horizontal" in orientacao else "true"
                 
-                # HTML limpo e responsivo com rolagem suave se passar do tamanho escolhido
+                # HTML AVANÇADO: Contém estilos profissionais e a função JavaScript para download
                 html_mermaid = f"""
                     <html style="background-color: transparent;">
-                    <body style="margin: 0; padding: 10px; background-color: transparent;">
+                    <head>
+                        <style>
+                            body {{ margin: 0; padding: 0; font-family: sans-serif; background-color: transparent; }}
+                            .container {{ position: relative; width: 100%; height: 100%; }}
+                            /* Botão de download elegante no estilo SaaS */
+                            .btn-download {{
+                                position: absolute;
+                                top: 10px;
+                                right: 10px;
+                                background-color: #0288d1;
+                                color: white;
+                                border: none;
+                                padding: 8px 14px;
+                                font-size: 13px;
+                                font-weight: bold;
+                                border-radius: 4px;
+                                cursor: pointer;
+                                box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+                                z-index: 9999;
+                                transition: background 0.2s;
+                            }}
+                            .btn-download:hover {{ background-color: #01579b; }}
+                        </style>
+                    </head>
+                    <body>
+                        <div class="container">
+                            <button class="btn-download" onclick="baixarFluxograma()">📥 Baixar Imagem (PNG)</button>
+                            
+                            <div class="mermaid" id="diagrama_fluxo">
+                                {codigo_mermaid}
+                            </div>
+                        </div>
+
                         <script type="module">
                             import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
                             mermaid.initialize({{ 
@@ -86,21 +126,49 @@ if st.button("Gerar Fluxograma", type="primary"):
                                 theme: 'base',
                                 flowchart: {{ useMaxWidth: {use_max_width} }},
                                 themeVariables: {{
-                                    primaryColor: '#e1f5fe',
-                                    primaryTextColor: '#01579b',
-                                    lineColor: '#0288d1',
-                                    nodeBorder: '#0288d1'
+                                    primaryColor: '#f1f8e9',
+                                    primaryTextColor: '#2e7d32',
+                                    lineColor: '#4caf50',
+                                    nodeBorder: '#4caf50'
                                 }}
                             }});
                         </script>
-                        <div class="mermaid">
-                            {codigo_mermaid}
-                        </div>
+
+                        <script>
+                            // Função mágica que converte o gráfico dinâmico em uma foto baixável
+                            function baixarFluxograma() {{
+                                const svg = document.querySelector('.mermaid svg');
+                                if (!svg) {{ alert('Aguarde o gráfico carregar completamente.'); return; }}
+                                
+                                const svgData = new XMLSerializer().serializeToString(svg);
+                                const canvas = document.createElement('canvas');
+                                const ctx = canvas.getContext('2d');
+                                const img = new Image();
+                                
+                                // Define tamanho extra para garantir alta resolução ao abrir no Photoshop
+                                canvas.width = svg.getBoundingClientRect().width * 2;
+                                canvas.height = svg.getBoundingClientRect().height * 2;
+                                
+                                img.onload = function() {{
+                                    ctx.fillStyle = '#ffffff'; // Fundo branco de estúdio
+                                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                                    
+                                    const a = document.createElement('a');
+                                    a.download = 'meu_fluxograma_profissional.png';
+                                    a.href = canvas.toDataURL('image/png');
+                                    a.click();
+                                }};
+                                
+                                img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
+                            }}
+                        </script>
                     </body>
                     </html>
                 """
-                # Usa a altura dinâmica vinda do Slider do Streamlit
+                
+                # Renderiza a tela limpa integrada
                 components.html(html_mermaid, height=altura_grafico, scrolling=True)
                 
         except Exception as e:
-            st.error(f"Ocorreu um erro na hora de desenhar: {e}")
+            st.error(f"Erro ao processar o design: {e}")
