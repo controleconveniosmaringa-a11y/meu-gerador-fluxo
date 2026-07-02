@@ -147,7 +147,6 @@ if st.session_state.nome_projeto is None:
 # 4. ÁREA DE TRABALHO UNIFICADA
 # ==========================================
 else:
-    # --- CABEÇALHO ---
     col_titulo, col_sair = st.columns([4, 1])
     with col_titulo:
         st.title(f"📁 Projeto: {st.session_state.nome_projeto}")
@@ -158,7 +157,6 @@ else:
             st.session_state.etapas_manuais = []
             st.rerun()
 
-    # --- BARRA LATERAL ---
     with st.sidebar:
         st.image("https://cdn-icons-png.flaticon.com/512/3208/3208723.png", width=70)
         st.title("Configurações")
@@ -168,7 +166,6 @@ else:
 
     st.write("Escolha uma ferramenta abaixo para inserir dados. O gráfico será atualizado em tempo real no final da página.")
 
-    # --- FERRAMENTAS EM ABAS (TUDO NO MESMO ECRÃ) ---
     aba_ia, aba_lista, aba_editar, aba_remover, aba_salvar = st.tabs([
         "🤖 Gerar com Inteligência Artificial", 
         "📝 Colar Lista Rápida", 
@@ -177,7 +174,7 @@ else:
         "💾 Salvar Projeto"
     ])
     
-    # FERRAMENTA 1: IA
+    # FERRAMENTA 1: IA (MECANISMO DE EXTRAÇÃO ROBUSTO COM REGEX)
     with aba_ia:
         st.write("Descreva o seu processo corrido aqui. A IA vai montar o gráfico pronto para edição manual.")
         texto_usuario = st.text_area("Descreva o processo para a IA:", height=100)
@@ -197,14 +194,22 @@ else:
                 try:
                     with st.spinner("A IA está desenhando as caixas e conexões..."):
                         resposta = modelo.generate_content(prompt_json)
-                        texto_limpo = resposta.text.replace("```json", "").replace("```", "").strip()
-                        st.session_state.etapas_manuais = json.loads(texto_limpo)
-                        st.rerun()
+                        texto_bruto = resposta.text
+                        
+                        # --- MÁGICA DA BLINDAGEM AUTOMÁTICA ---
+                        # Captura cirurgicamente apenas o que está entre os colchetes do JSON [ ]
+                        match = re.search(r'\[.*\]', texto_bruto, re.DOTALL)
+                        if match:
+                            texto_limpo = match.group(0)
+                            st.session_state.etapas_manuais = json.loads(texto_limpo)
+                            st.rerun()
+                        else:
+                            st.error("A IA não retornou uma estrutura de dados compatível. Tente novamente.")
                 except Exception as e:
                     if "429" in str(e) or "quota" in str(e).lower():
                         st.warning("⏳ Limite gratuito atingido. Aguarde 1 minuto.")
                     else:
-                        st.error("Erro ao gerar. Tente reescrever o texto.")
+                        st.error(f"Erro ao processar: {e}")
             else:
                 st.warning("Insira a descrição.")
 
@@ -221,7 +226,7 @@ else:
                     id_atual = str(idx + 1)
                     proxima = str(idx + 2) if idx < len(linhas) - 1 else ""
                     tipo = "Processo Comum"
-                    linha_lower = linha_limpa.lower()
+                    linha_lower = inline = linha_limpa.lower()
                     if "inicio" in linha_lower or "início" in linha_lower or "fim" in list(linha_lower)[:5] or "encerra" in linha_lower: tipo = "Início / Fim"
                     elif "?" in linha_lower or "se " in linha_lower or "selecionar" in linha_lower: tipo = "Decisão"
                     elif "erro" in linha_lower or "falha" in linha_lower or "rejeit" in linha_lower: tipo = "Erro"
@@ -278,7 +283,6 @@ else:
                 st.session_state.etapas_manuais = []
                 st.rerun()
         
-        # Mostra a tabela e o gráfico um debaixo do outro, fixos na tela!
         with st.expander("Ver Tabela de Dados"):
             st.dataframe(st.session_state.etapas_manuais, use_container_width=True)
             
