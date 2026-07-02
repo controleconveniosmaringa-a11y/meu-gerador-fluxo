@@ -9,10 +9,10 @@ st.set_page_config(
     layout="wide"
 )
 
-# 2. Conectando a chave do Gemini
+# 2. Conectando a chave
 genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
 
-# 3. Descoberta automática do modelo de IA
+# 3. Descoberta automática do modelo
 modelo_valido = "gemini-1.5-flash"
 try:
     for m in genai.list_models():
@@ -24,6 +24,14 @@ except:
     pass
 
 modelo = genai.GenerativeModel(modelo_valido)
+
+# --- A MÁGICA DO PLANO GRATUITO: MEMÓRIA CACHE ---
+# Guarda o resultado por 1 hora (3600 segundos) para não gastar o limite da API
+@st.cache_data(ttl=3600, show_spinner=False)
+def gerar_grafico_ia(prompt):
+    resposta = modelo.generate_content(prompt)
+    return resposta.text.replace("```mermaid", "").replace("```", "").strip()
+# --------------------------------------------------
 
 # 4. BARRA LATERAL
 with st.sidebar:
@@ -48,7 +56,7 @@ with st.sidebar:
 
 # 5. ÁREA PRINCIPAL
 st.title("Gerador de Fluxogramas 📊")
-st.write("Descreva o seu processo aqui e a IA criará um diagrama profissional, colorido e sem erros.")
+st.write("Versão Otimizada (Free Tier): Sistema inteligente que poupa a cota de requisições.")
 
 tipo_grafico = "graph TD" if "Vertical" in orientacao else "graph LR"
 texto_usuario = st.text_area("Descreva o seu processo aqui:", height=150, placeholder="Ex: O analista recebe a solicitação...")
@@ -62,34 +70,33 @@ if st.button("Gerar Fluxograma Profissional", type="primary"):
         Transforme o texto fornecido em um diagrama válido do tipo '{tipo_grafico}'.
         
         REGRAS DE SINTAXE OBRIGATÓRIAS (ANTI-ERRO):
-        1. IDENTIFICADORES DOS NÓS: Use APENAS letras simples sequenciais como IDs das caixas (A, B, C, D, E, F, etc.). Nunca use siglas ou palavras do texto como IDs.
+        1. IDENTIFICADORES DOS NÓS: Use APENAS letras simples sequenciais como IDs.
         2. TEXTOS COM ASPAS: Todo texto descritivo dentro das caixas DEVE estar entre aspas duplas, ex: A["Texto"].
-        3. PROIBIÇÃO DE PARÊNTESES NO TEXTO: Se o texto original contiver parênteses, como em "NFSEFAZ(tesouraria)", você deve REMOVER os parênteses ou substituí-los por hífens. Exemplo: "NFSEFAZ - tesouraria". Parênteses brutos dentro das caixas quebram o Mermaid.
-        4. QUEBRA DE LINHA: Insira a tag <br/> a cada duas ou três palavras dentro das aspas para o texto ficar bem diagramado e não cortar.
+        3. PROIBIÇÃO DE PARÊNTESES NO TEXTO: Remova ou substitua parênteses brutos por hífens.
+        4. QUEBRA DE LINHA: Insira <br/> a cada duas ou três palavras dentro das aspas.
         
-        FORMATOS E ESTILOS COMPATÍVEIS (Aplique a classe diretamente no nó):
-        - Início ou Fim do fluxo: ID([Texto]):::inicio
-        - Etapas/Ações comuns: ID[Texto]:::processo
-        - Decisões/Perguntas: ID{{Texto}}:::decisao
-        - Resultados de Sucesso: ID([Texto]):::sucesso
-        - Erros ou Falhas: ID([Texto]):::erro
+        FORMATOS E ESTILOS COMPATÍVEIS:
+        - Início/Fim: ID([Texto]):::inicio
+        - Etapas: ID[Texto]:::processo
+        - Decisões: ID{{Texto}}:::decisao
+        - Sucesso: ID([Texto]):::sucesso
+        - Erros: ID([Texto]):::erro
         
-        DEFINIÇÃO DAS CLASSES DE ESTILO:
+        DEFINIÇÃO DAS CLASSES:
         classDef inicio fill:#e8eaf6,stroke:#3f51b5,stroke-width:2px,color:#1a237e;
-        classDef depth fill:#e0f2f1,stroke:#009688,stroke-width:2px,color:#004d40;
         classDef processo fill:#e0f2f1,stroke:#009688,stroke-width:2px,color:#004d40;
         classDef decisao fill:#fff3e0,stroke:#ff9800,stroke-width:2px,color:#e65100;
         classDef sucesso fill:#e8f5e9,stroke:#4caf50,stroke-width:2px,color:#1b5e20;
         classDef erro fill:#ffebee,stroke:#f44336,stroke-width:2px,color:#b71c1c;
         
-        Não dê explicações ou introduções. Retorne APENAS o código puro do Mermaid.
+        Não dê explicações. Retorne APENAS o código puro do Mermaid.
         Texto do usuário: {texto_usuario}
         """
         
         try:
             with st.spinner("Analisando dados e estruturando o fluxo..."):
-                resposta_ia = modelo.generate_content(prompt_secreto)
-                codigo_mermaid = resposta_ia.text.replace("```mermaid", "").replace("```", "").strip()
+                # Chama a função com Cache
+                codigo_mermaid = gerar_grafico_ia(prompt_secreto)
                 
                 with st.expander("⚙️ Verificar Código Gerado (Debug)"):
                     st.code(codigo_mermaid, language="mermaid")
@@ -170,10 +177,9 @@ if st.button("Gerar Fluxograma Profissional", type="primary"):
                 """
                 components.html(html_mermaid, height=altura_grafico, scrolling=True)
                 
-        # --- AQUI ESTÁ A MÁGICA DE ESCONDER O ERRO 429 ---
         except Exception as e:
             erro_str = str(e)
             if "429" in erro_str or "quota" in erro_str.lower():
-                st.warning("⏳ O servidor da Inteligência Artificial está muito ocupado agora (Limite do Plano Gratuito). Por favor, aguarde **1 minuto** e tente clicar em gerar novamente!")
+                st.warning("⏳ O limite de segurança do plano gratuito foi atingido. Por favor, aguarde **1 minuto** e tente gerar novamente!")
             else:
                 st.error(f"Erro ao processar o design: {e}")
