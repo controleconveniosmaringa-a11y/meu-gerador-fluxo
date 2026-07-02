@@ -120,17 +120,23 @@ def desenhar_grafico_da_memoria(orientacao, altura):
         
         texto_final = texto_final.replace('"', "'") 
         
-        if "Decisão" in et["tipo"]: cx = f'{et["id"]}{{"{texto_final}"}}:::decisao'
-        elif "Início" in et["tipo"]: cx = f'{et["id"]}(["{texto_final}"]):::inicio'
-        elif "Sucesso" in et["tipo"]: cx = f'{et["id"]}(["{texto_final}"]):::sucesso'
-        elif "Erro" in et["tipo"]: cx = f'{et["id"]}(["{texto_final}"]):::erro'
-        else: cx = f'{et["id"]}["{texto_final}"]:::processo'
+        if "Decisão" in et["tipo"]: 
+            cx = f'{et["id"]}{{"{texto_final}"}}:::decisao'
+        elif "Início" in et["tipo"]: 
+            cx = f'{et["id"]}(["{texto_final}"]):::inicio'
+        elif "Sucesso" in et["tipo"]: 
+            cx = f'{et["id"]}(["{texto_final}"]):::sucesso'
+        elif "Erro" in et["tipo"]: 
+            cx = f'{et["id"]}(["{texto_final}"]):::erro'
+        else: 
+            cx = f'{et["id"]}["{texto_final}"]:::processo'
         
         codigo += f"    {cx}\n"
         
         if et["proxima"]:
             for ligacao in et["proxima"].split(","):
-                if ligacao: codigo += f'    {et["id"]} --> {ligacao.strip()}\n'
+                if ligacao: 
+                    codigo += f'    {et["id"]} --> {ligacao.strip()}\n'
 
     renderizar_mermaid(codigo, orientacao, altura)
 
@@ -157,8 +163,12 @@ if st.session_state.nome_projeto is None:
         if arquivo:
             if st.button("Abrir Projeto"):
                 dados = json.load(arquivo)
-                st.session_state.nome_projeto = dados.get("nome", "Projeto Restaurado") if isinstance(dados, dict) else "Projeto Restaurado"
-                st.session_state.etapas_manuais = dados.get("etapas", dados) if isinstance(dados, dict) else dados
+                if isinstance(dados, dict):
+                    st.session_state.nome_projeto = dados.get("nome", "Projeto Restaurado")
+                    st.session_state.etapas_manuais = dados.get("etapas", [])
+                else:
+                    st.session_state.nome_projeto = "Projeto Restaurado"
+                    st.session_state.etapas_manuais = dados
                 st.rerun()
 
 # ==========================================
@@ -194,7 +204,7 @@ else:
     ])
     
     # -----------------------------------------------------
-    # ABA 1: IA COM BLINDAGEM JSON REGEX (CORRIGIDA E FECHADA)
+    # ABA 1: IA COM BLINDAGEM JSON REGEX
     # -----------------------------------------------------
     with aba_ia:
         st.write("Descreva o seu processo corrido aqui. A IA vai montar a base do gráfico.")
@@ -234,7 +244,7 @@ else:
                 st.warning("Insira a descrição.")
 
     # -----------------------------------------------------
-    # ABA 2: LISTA RÁPIDA (COM LIMPEZA MELHORADA)
+    # ABA 2: LISTA RÁPIDA (COM IFs EM LINHAS CURTAS)
     # -----------------------------------------------------
     with aba_lista:
         lista_texto = st.text_area("Cole sua lista numerada de etapas aqui:", height=100)
@@ -250,9 +260,105 @@ else:
                     id_atual = str(idx + 1)
                     proxima = str(idx + 2) if idx < len(linhas) - 1 else ""
                     
-                    # Categoria inteligente
+                    # Categoria inteligente (Quebrada em múltiplas linhas para não cortar no Streamlit)
                     tipo = "Processo Comum"
                     linha_lower = linha_limpa.lower()
-                    if "inicio" in linha_lower or "início" in linha_lower or "fim" in list(linha_lower)[:5] or "encerra" in linha_lower: 
+                    
+                    is_inicio = "inicio" in linha_lower or "início" in linha_lower
+                    is_fim = "fim" in linha_lower[:5] or "encerra" in linha_lower
+                    
+                    if is_inicio or is_fim:
                         tipo = "Início / Fim"
-                    elif "?" in linha_lower or "se " in linha_lower or "selecionar" in
+                    elif "?" in linha_lower or "se " in linha_lower or "selecionar" in linha_lower:
+                        tipo = "Decisão"
+                    elif "erro" in linha_lower or "falha" in linha_lower or "rejeit" in linha_lower:
+                        tipo = "Erro"
+                        
+                    etapas_processadas.append({
+                        "id": id_atual, 
+                        "texto": linha_limpa, 
+                        "tipo": tipo, 
+                        "proxima": proxima
+                    })
+                
+                st.session_state.etapas_manuais = etapas_processadas
+                st.rerun()
+
+    # -----------------------------------------------------
+    # ABA 3: EDITOR INDIVIDUAL
+    # -----------------------------------------------------
+    with aba_editar:
+        col1, col2, col3 = st.columns([1, 3, 2])
+        with col1:
+            id_etapa = st.text_input("ID (Ex: A ou 1)").upper().strip()
+        with col2:
+            texto_etapa = st.text_input("Texto da Ação:")
+        with col3:
+            tipo_etapa = st.selectbox("Categoria da Cor:", ["Processo Comum", "Início / Fim", "Decisão", "Sucesso", "Erro"])
+        proxima_ligacao = st.text_input("Liga ao ID: (Separe por vírgulas)").upper().replace(" ", "")
+
+        if st.button("💾 Inserir ou Atualizar Etapa"):
+            if id_etapa and texto_etapa:
+                id_existente = False
+                for i, etapa in enumerate(st.session_state.etapas_manuais):
+                    if etapa["id"] == id_etapa:
+                        st.session_state.etapas_manuais[i] = {
+                            "id": id_etapa, 
+                            "texto": texto_etapa, 
+                            "tipo": tipo_etapa, 
+                            "proxima": proxima_ligacao
+                        }
+                        id_existente = True
+                        break
+                if not id_existente:
+                    st.session_state.etapas_manuais.append({
+                        "id": id_etapa, 
+                        "texto": texto_etapa, 
+                        "tipo": tipo_etapa, 
+                        "proxima": proxima_ligacao
+                    })
+                st.rerun()
+
+    # -----------------------------------------------------
+    # ABA 4: REMOVER E ABA 5: BACKUP
+    # -----------------------------------------------------
+    with aba_remover:
+        id_para_remover = st.text_input("ID para remover:").upper().strip()
+        if st.button("🗑️ Apagar Etapa"):
+            st.session_state.etapas_manuais = [et for et in st.session_state.etapas_manuais if et["id"] != id_para_remover]
+            st.rerun()
+
+    with aba_salvar:
+        if len(st.session_state.etapas_manuais) > 0:
+            dados_completos = {
+                "nome": st.session_state.nome_projeto, 
+                "etapas": st.session_state.etapas_manuais
+            }
+            projeto_json = json.dumps(dados_completos, indent=4)
+            nome_arquivo = f"{st.session_state.nome_projeto.replace(' ', '_')}.json"
+            
+            st.download_button(
+                label="💾 Backup do Projeto (.json)", 
+                data=projeto_json, 
+                file_name=nome_arquivo, 
+                mime="application/json", 
+                type="primary"
+            )
+
+    # ==========================================
+    # 6. O GRÁFICO E A TABELA (SEMPRE VISÍVEIS)
+    # ==========================================
+    if len(st.session_state.etapas_manuais) > 0:
+        st.divider()
+        colA, colB = st.columns([4, 1])
+        with colA:
+            st.write("#### 📋 O Seu Fluxograma")
+        with colB:
+            if st.button("💥 Limpar Tudo", use_container_width=True):
+                st.session_state.etapas_manuais = []
+                st.rerun()
+        
+        with st.expander("Ver Tabela de Dados (Modo Avançado)"):
+            st.dataframe(st.session_state.etapas_manuais, use_container_width=True)
+            
+        desenhar_grafico_da_memoria(orientacao, altura_grafico)
