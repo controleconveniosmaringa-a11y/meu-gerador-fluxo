@@ -2,15 +2,28 @@ import streamlit as st
 import streamlit.components.v1 as components
 import google.generativeai as genai
 
-# 1. Conectando a sua chave NOVA (AQ...)
+# 1. Conectando a sua chave NOVA
 genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
 
-# 2. Usando o modelo universal e mais estável do Google
-modelo = genai.GenerativeModel('gemini-pro')
+# 2. O TRUQUE DE MESTRE: O código descobre o nome do modelo sozinho!
+modelo_valido = "gemini-1.5-flash" # Nome de segurança
+try:
+    for m in genai.list_models():
+        if 'generateContent' in m.supported_generation_methods:
+            modelo_valido = m.name
+            if 'flash' in m.name: # Dá preferência pro modelo mais rápido
+                break
+except:
+    pass
+
+modelo = genai.GenerativeModel(modelo_valido)
 
 # 3. Construção da Tela
 st.title("Gerador de Fluxogramas Automático 🤖")
 st.write("Descreva o seu processo e a IA criará o gráfico profissional!")
+
+# Mostra na tela qual modelo o código conseguiu achar para você
+st.success(f"Conectado com sucesso! Usando a inteligência: {modelo_valido}")
 
 texto_usuario = st.text_area("Descreva o processo aqui:", height=150)
 
@@ -41,4 +54,4 @@ if st.button("Gerar Fluxograma"):
                 """
                 components.html(html_mermaid, height=600)
         except Exception as e:
-            st.error(f"Ocorreu um erro na IA: {e}")
+            st.error(f"Ocorreu um erro na hora de desenhar: {e}")
