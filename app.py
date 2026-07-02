@@ -57,7 +57,6 @@ if st.button("Gerar Fluxograma Profissional", type="primary"):
     if texto_usuario.strip() == "":
         st.warning("Por favor, insira a descrição de um processo.")
     else:
-        # PROMPT REFORÇADO: Remove parênteses do texto para evitar conflito de sintaxe
         prompt_secreto = f"""
         Você é um gerador estrito de código Mermaid.js funcional, sem erros de sintaxe.
         Transforme o texto fornecido em um diagrama válido do tipo '{tipo_grafico}'.
@@ -171,5 +170,10 @@ if st.button("Gerar Fluxograma Profissional", type="primary"):
                 """
                 components.html(html_mermaid, height=altura_grafico, scrolling=True)
                 
+        # --- AQUI ESTÁ A MÁGICA DE ESCONDER O ERRO 429 ---
         except Exception as e:
-            st.error(f"Erro ao processar o design: {e}")
+            erro_str = str(e)
+            if "429" in erro_str or "quota" in erro_str.lower():
+                st.warning("⏳ O servidor da Inteligência Artificial está muito ocupado agora (Limite do Plano Gratuito). Por favor, aguarde **1 minuto** e tente clicar em gerar novamente!")
+            else:
+                st.error(f"Erro ao processar o design: {e}")
