@@ -63,26 +63,32 @@ def renderizar_mermaid(codigo_mermaid, altura=1200):
     components.html(html, height=altura, scrolling=True)
 
 # ==========================================
-# 3. IA (GABARITO BLINDADO + ENGENHARIA PYTHON)
+# 3. IA (LÓGICA DE LOOPS E CONDIÇÕES IMPLÍCITAS)
 # ==========================================
 def processar_ia(texto):
     prompt = f"""
-    Você é um Auditor Rigoroso de Processos BPMN. Extraia o fluxo para JSON.
+    Você é um Arquiteto BPMN Rigoroso. Extraia o fluxo para JSON.
     
-    REGRAS ABSOLUTAS:
-    1. INÍCIO E FIM: A primeira etapa DEVE ser "Início". A última DEVE ser "Fim".
-    2. PROIBIDO BLOCOS SOLTOS: Toda etapa tem que apontar para a próxima. Se a etapa encerra o processo, aponte para o ID do "Fim".
-    3. CONDIÇÕES (A MÁGICA): Se a etapa for uma pergunta/validação, o "tipo" será "Decisão". 
-       Você DEVE criar DUAS chaves novas ESPECÍFICAS para a Decisão: "proxima_sim" (com o ID do caminho SIM) e "proxima_nao" (com o ID do caminho NÃO).
-       
-    EXEMPLO GABARITO PERFEITO (Copie esta estrutura lógica):
+    REGRAS DE OURO DA INTELIGÊNCIA:
+    1. INÍCIO E FIM: A primeira etapa é "Início", a última é "Fim".
+    2. O SEGREDO DO LOOP (ACOMPANHAR/ESPERAR): Se o texto disser para "acompanhar o momento que X acontecer" ou "verificar se X", você DEVE dividir isso em duas etapas:
+       - Uma etapa tipo "Processo" (Ex: Acompanhar conta-corrente).
+       - Uma etapa tipo "Decisão" logo abaixo (Ex: Recurso entrou na conta?).
+       - Na "Decisão", o SIM avança. O NÃO volta para o ID do Processo de acompanhamento (criando um loop).
+    3. REGRAS DE JSON:
+       - Decisões usam as chaves: "proxima_sim" e "proxima_nao".
+       - Outros tipos usam apenas a chave: "proxima".
+    4. SISTEMAS: Referências a sistemas (Oxy, SEI) geram tipo "Documento".
+    
+    EXEMPLO GABARITO (Siga exatamente esta lógica para Loops):
+    Texto: "...encaminhar para tesouraria. acompanhar conta-corrente do convênio o momento que recurso entrou. no sistema Oxy realizar lançamento..."
+    JSON Correto:
     {{
       "fluxo": [
-        {{"id": "1", "texto": "Início da análise", "tipo": "Início", "raia": "Geral", "proxima": "2"}},
-        {{"id": "2", "texto": "Recurso entrou?", "tipo": "Decisão", "raia": "Geral", "proxima_sim": "3", "proxima_nao": "4"}},
-        {{"id": "3", "texto": "Faz repasse", "tipo": "Processo", "raia": "Geral", "proxima": "5"}},
-        {{"id": "4", "texto": "Volta a aguardar", "tipo": "Processo", "raia": "Geral", "proxima": "5"}},
-        {{"id": "5", "texto": "Fim do processo", "tipo": "Fim", "raia": "Geral", "proxima": ""}}
+        {{"id": "3", "texto": "Encaminhar para a tesouraria", "tipo": "Processo", "raia": "Geral", "proxima": "4"}},
+        {{"id": "4", "texto": "Acompanhar conta-corrente do convênio", "tipo": "Processo", "raia": "Geral", "proxima": "5"}},
+        {{"id": "5", "texto": "Recurso entrou na conta?", "tipo": "Decisão", "raia": "Geral", "proxima_sim": "6", "proxima_nao": "4"}},
+        {{"id": "6", "texto": "Realizar lançamento de transferência bancária no sistema Oxy", "tipo": "Documento", "raia": "Geral", "proxima": "7"}}
       ]
     }}
     
@@ -100,14 +106,12 @@ def processar_ia(texto):
         dados = json.loads(res_texto)
         fluxo = dados.get("fluxo", []) 
         
-        # --- AQUI ESTÁ A CORREÇÃO FEITA EM PYTHON (INFALÍVEL) ---
+        # O Python obriga a estrutura SIM/NÃO sem depender da IA
         for etapa in fluxo:
-            # Se a IA criou uma decisão, o Python obriga a formatação do SIM e NÃO
             if etapa.get("tipo") == "Decisão":
                 sim = etapa.pop("proxima_sim", None)
                 nao = etapa.pop("proxima_nao", None)
                 
-                # Monta a estrutura perfeita exigida pelo nosso painel
                 if sim and nao:
                     etapa["proxima"] = f"{sim}|SIM, {nao}|NÃO"
                 elif sim:
@@ -130,17 +134,17 @@ orientacao = st.radio(
     "Orientação do Gráfico:", 
     ["Horizontal (Esquerda p/ Direita)", "Vertical (Cima p/ Baixo)"],
     horizontal=True,
-    index=0 
+    index=1 # Vertical por padrão, como no seu Miro
 )
 
 aba1, aba2 = st.tabs(["🤖 Gerador IA", "✏️ Tabela de Edição"])
 
 with aba1:
-    texto = st.text_area("Cole o texto do seu processo aqui:", height=100)
+    texto = st.text_area("Cole o texto do seu processo aqui:", height=200)
     
     if st.button("✨ Gerar Fluxograma Exato", type="primary"):
         if texto.strip() != "":
-            with st.spinner("Compilando lógica sem pontas soltas..."):
+            with st.spinner("Estruturando o loop lógico (SIM/NÃO)..."):
                 resultado = processar_ia(texto)
                 if resultado is not None and len(resultado) > 0:
                     st.session_state.etapas = resultado
