@@ -18,17 +18,17 @@ else:
     st.stop()
 
 # ==========================================
-# 2. MOTOR DE DESIGN (ESTÉTICA MIRO - TAMANHO GIGANTE)
+# 2. MOTOR DE DESIGN (ESTÉTICA MIRO - GIGANTE)
 # ==========================================
-def renderizar_mermaid(codigo_mermaid, altura=1000):
+def renderizar_mermaid(codigo_mermaid, altura=1200):
     html = f"""
     <html>
     <head>
         <style>
             body {{ margin: 0; padding: 20px; background-color: #f4f5f9; }}
-            .mermaid {{ display: flex; justify-content: flex-start; overflow-x: auto; padding-bottom: 20px; }}
-            /* AQUI ESTÁ O AUMENTO: Largura mínima forçada para 1800px para não esmagar o gráfico */
-            .mermaid svg {{ min-width: 1800px !important; height: auto !important; }} 
+            /* Container configurado para permitir rolagem e não esmagar o gráfico */
+            .mermaid {{ display: flex; justify-content: flex-start; overflow-x: auto; padding-bottom: 40px; }}
+            .mermaid svg {{ min-width: 1500px !important; width: 100% !important; height: auto !important; }} 
         </style>
     </head>
     <body>
@@ -40,23 +40,23 @@ def renderizar_mermaid(codigo_mermaid, altura=1000):
                 theme: 'base',
                 themeVariables: {{ 
                     fontFamily: 'Arial, sans-serif', 
-                    fontSize: '18px', /* AQUI: Fonte aumentada */
+                    fontSize: '20px', /* FONTE ENORME */
                     lineColor: '#94a3b8',
-                    lineWidth: '2px',
+                    lineWidth: '3px', /* SETAS MAIS GROSSAS */
                     clusterBkg: 'transparent',
                     clusterBorder: '#cbd5e1'
                 }},
                 themeCSS: `
                     .node rect, .node circle, .node polygon, .node path {{ 
-                        filter: drop-shadow(0 2px 5px rgba(0,0,0,0.08));
+                        filter: drop-shadow(0 4px 8px rgba(0,0,0,0.1));
                     }}
-                    .node label {{ padding: 12px !important; }} /* AQUI: Caixas mais "gordinhas" */
-                    .edgeLabel {{ background-color: #f4f5f9 !important; padding: 4px 10px !important; font-weight: bold; color: #475569; border: 1px solid #cbd5e1; border-radius: 4px; }}
-                    .cluster rect {{ stroke-dasharray: 4; stroke-width: 1px; rx: 8px; ry: 8px; }}
-                    .cluster text {{ font-weight: bold; fill: #64748b; font-size: 16px; padding: 10px; }}
+                    .node label {{ padding: 16px !important; }} /* CAIXAS MUITO MAIORES */
+                    .edgeLabel {{ background-color: #f4f5f9 !important; padding: 6px 12px !important; font-weight: bold; color: #475569; border: 1px solid #cbd5e1; border-radius: 6px; }}
+                    .cluster rect {{ stroke-dasharray: 4; stroke-width: 2px; rx: 8px; ry: 8px; }}
+                    .cluster text {{ font-weight: bold; fill: #64748b; font-size: 18px; padding: 15px; }}
                 `,
-                /* AQUI: Mais espaço em branco entre as setas e as caixas */
-                flowchart: {{ useMaxWidth: false, htmlLabels: true, curve: 'basis', nodeSpacing: 80, rankSpacing: 120 }}
+                /* ESPAÇAMENTO GIGANTE ENTRE CAIXAS E SETAS */
+                flowchart: {{ useMaxWidth: false, htmlLabels: true, curve: 'basis', nodeSpacing: 100, rankSpacing: 150 }}
             }});
         </script>
     </body>
@@ -65,39 +65,37 @@ def renderizar_mermaid(codigo_mermaid, altura=1000):
     components.html(html, height=altura, scrolling=True)
 
 # ==========================================
-# 3. IA (GABARITO INJETADO + TEMP 0.0) - INTACTO
+# 3. IA (GABARITO BLINDADO ANTI-BLOCOS SOLTOS)
 # ==========================================
 def processar_ia(texto):
     prompt = f"""
-    Você é um Arquiteto de Processos especialista em BPMN. Extraia o fluxo do texto para um JSON.
+    Você é um Auditor Rigoroso de Processos BPMN. Sua missão é extrair um fluxo perfeito e SEM PONTAS SOLTAS.
     
-    REGRA CRÍTICA PARA CONDIÇÕES (SIM/NÃO):
-    Sempre que o texto apresentar uma validação, dúvida ou pergunta (Ex: "Recurso entrou na conta?"):
-    1. Crie uma etapa com o tipo "Decisão".
-    2. Conecte AS DUAS SAÍDAS no campo "proxima" usando o formato "ID_DO_SIM|SIM, ID_DO_NAO|NÃO".
+    REGRAS ABSOLUTAS (SOB PENA DE FALHA GRAVE):
+    1. INÍCIO E FIM OBRIGATÓRIOS: A primeira etapa TEM QUE SER do tipo "Início". A última etapa TEM QUE SER do tipo "Fim".
+    2. PROIBIDO BLOCOS SOLTOS: Toda etapa (exceto o "Fim") DEVE ter o campo "proxima" preenchido com o ID da etapa seguinte. NUNCA deixe o campo "proxima" vazio. Se uma etapa encerra o processo, a "proxima" dela deve apontar para o ID da etapa de "Fim".
+    3. CONDIÇÕES (SIM/NÃO): Se houver uma validação ou dúvida, crie uma "Decisão". O campo "proxima" DEVE ter as duas saídas: "ID_SIM|SIM, ID_NAO|NÃO".
     
-    EXEMPLO OBRIGATÓRIO DE COMO VOCÊ DEVE RESPONDER (Copie esta estrutura):
+    EXEMPLO GABARITO PERFEITO (Siga esta estrutura para não deixar blocos soltos):
     Texto: "Verifica se há saldo. Se SIM, paga. Se NÃO, cancela."
     JSON Correto:
     {{
       "fluxo": [
-        {{"id": "A", "texto": "Verifica se há saldo", "tipo": "Decisão", "raia": "Geral", "proxima": "B|SIM, C|NÃO"}},
-        {{"id": "B", "texto": "Paga", "tipo": "Processo", "raia": "Geral", "proxima": ""}},
-        {{"id": "C", "texto": "Cancela", "tipo": "Processo", "raia": "Geral", "proxima": ""}}
+        {{"id": "1", "texto": "Início da verificação", "tipo": "Início", "raia": "Geral", "proxima": "2"}},
+        {{"id": "2", "texto": "Há saldo?", "tipo": "Decisão", "raia": "Geral", "proxima": "3|SIM, 4|NÃO"}},
+        {{"id": "3", "texto": "Paga o pedido", "tipo": "Processo", "raia": "Geral", "proxima": "5"}},
+        {{"id": "4", "texto": "Cancela pedido", "tipo": "Processo", "raia": "Geral", "proxima": "5"}},
+        {{"id": "5", "texto": "Fim do processo", "tipo": "Fim", "raia": "Geral", "proxima": ""}}
       ]
     }}
     
-    OUTRAS REGRAS:
-    - Sistemas (SEI, Oxy, planilhas) = tipo "Documento".
-    - Loops: Se a resposta NÃO disser para voltar a uma etapa anterior, coloque o ID da etapa antiga.
-    
-    Texto para analisar: {texto}
+    Texto do usuário para analisar: {texto}
     """
     try:
         completion = client.chat.completions.create(
             model="llama-3.1-8b-instant",
             messages=[{"role": "user", "content": prompt}],
-            temperature=0.0, 
+            temperature=0.0, # Mantém a lógica fria e estável
             response_format={"type": "json_object"} 
         )
         
@@ -110,7 +108,7 @@ def processar_ia(texto):
         return None
 
 # ==========================================
-# 4. INTERFACE - INTACTO
+# 4. INTERFACE
 # ==========================================
 st.title("🎨 Gerador de Fluxos (Clone do Miro)")
 
@@ -128,7 +126,7 @@ with aba1:
     
     if st.button("✨ Gerar Fluxograma Exato", type="primary"):
         if texto.strip() != "":
-            with st.spinner("Compilando lógica de ramificações (SIM/NÃO)..."):
+            with st.spinner("Compilando lógica sem pontas soltas..."):
                 resultado = processar_ia(texto)
                 if resultado is not None and len(resultado) > 0:
                     st.session_state.etapas = resultado
@@ -155,7 +153,7 @@ with aba2:
     )
 
 # ==========================================
-# 5. GERADOR MERMAID (CORES DO MIRO) - INTACTO
+# 5. GERADOR MERMAID (CORES DO MIRO)
 # ==========================================
 if len(st.session_state.etapas) > 0:
     st.divider()
