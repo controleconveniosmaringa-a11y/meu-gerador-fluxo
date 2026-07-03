@@ -132,7 +132,7 @@ def processar_ia(texto):
 # ==========================================
 # 4. INTERFACE E APLICATIVO
 # ==========================================
-st.title("🎨 Gerador de Fluxos (Clone do Miro)")
+st.title("🎨 Gerador de Fluxos")
 
 orientacao = st.radio(
     "Orientação do Gráfico:", 
