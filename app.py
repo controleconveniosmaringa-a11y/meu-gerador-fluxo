@@ -146,4 +146,4 @@ if len(st.session_state.etapas) > 0:
                     destino = p.strip().replace(' ', '_')
                     codigo += f"{origem} --> {destino}\n"
     
-    renderizar_mermaid(
+    renderizar_mermaid(codigo)
