@@ -1,3 +1,14 @@
+Você tem toda a razão! Chamar o aplicativo de "Miro Clone" na tela final não faz sentido nenhum para quem for usar. Isso era apenas um termo nosso de desenvolvimento. Já limpei os títulos e deixei com uma cara de sistema oficial e profissional.
+
+Sobre a etapa de "Início" ficar "voando" sem ligação, isso aconteceu porque a IA reconheceu que o processo tinha um começo, mas como não demos uma regra rígida, ela "esqueceu-se" de preencher o campo que liga esse Início à primeira tarefa real.
+
+Dei uma "bronca" na IA direto no Prompt, adicionando a **Regra 1**, que a obriga a conectar o Início ao próximo passo sempre.
+
+### O Código Corrigido e Limpo (`app.py`)
+
+Apague o antigo e copie este. O aplicativo agora está com títulos limpos e a IA foi instruída a não deixar pontas soltas no início do fluxo.
+
+```python
 import streamlit as st
 import streamlit.components.v1 as components
 from groq import Groq
@@ -6,7 +17,7 @@ import json
 # ==========================================
 # 1. CONFIGURAÇÃO
 # ==========================================
-st.set_page_config(page_title="Gerador de Fluxos (Estilo Miro)", page_icon="🎨", layout="wide")
+st.set_page_config(page_title="Gerador de Fluxos de Processo", page_icon="📊", layout="wide")
 
 if "etapas" not in st.session_state: 
     st.session_state.etapas = []
@@ -18,7 +29,7 @@ else:
     st.stop()
 
 # ==========================================
-# 2. MOTOR DE DESIGN (CLONE DO MIRO)
+# 2. MOTOR DE DESIGN (ESTÉTICA CORPORATIVA)
 # ==========================================
 def renderizar_mermaid(codigo_mermaid, altura=700):
     html = f"""
@@ -61,25 +72,21 @@ def renderizar_mermaid(codigo_mermaid, altura=700):
     components.html(html, height=altura, scrolling=True)
 
 # ==========================================
-# 3. IA (LÓGICA CONDICIONAL FORÇADA)
+# 3. IA (LÓGICA CONDICIONAL E LIGAÇÃO FORÇADA)
 # ==========================================
 def processar_ia(texto):
     prompt = f"""
     Você é um Arquiteto de Processos. Sua missão é estruturar o texto do usuário em um JSON perfeito.
     
-    REGRAS DE OURO PARA CONDIÇÕES (DECISÃO):
-    Se o texto indicar uma verificação, dúvida, validação ou cenário de "Se sim / Se não" (Ex: "Recurso entrou na conta?"), VOCÊ É OBRIGADO A:
-    1. Criar uma etapa do tipo "Decisão".
-    2. No campo "proxima", mapear as DUAS SAÍDAS usando o formato ID|Texto separado por vírgula.
-       - Exemplo Perfeito: "proxima": "C|SIM, D|NÃO" (Onde C e D são os IDs dos próximos passos).
-       - NUNCA deixe uma Decisão com apenas uma saída.
-       
-    OUTRAS REGRAS:
-    - Sistemas, extratos ou relatórios (ex: SEI, Oxy) = usar tipo "Documento".
-    - Ações executadas = usar tipo "Processo".
+    REGRAS DE OURO:
+    1. LIGAÇÃO DO INÍCIO: Todo fluxo deve ter um nó do tipo "Início". O campo "proxima" deste nó DEVE OBRIGATORIAMENTE estar preenchido com o ID da etapa seguinte. O fluxo NUNCA pode começar quebrado.
+    2. CONDIÇÕES (DECISÃO): Se o texto indicar verificação, validação ou cenário de "Se sim / Se não", você DEVE:
+       - Criar uma etapa do tipo "Decisão".
+       - No campo "proxima", mapear as DUAS SAÍDAS usando ID|Texto (Exemplo: "C|SIM, D|NÃO").
+    3. Documentos, sistemas ou relatórios (ex: SEI, Oxy) = usar tipo "Documento".
     
     Retorne um objeto JSON contendo APENAS a chave "fluxo".
-    Estrutura exata do array: {{"id": "A", "texto": "Resumo da ação", "tipo": "Processo", "raia": "Departamento", "proxima": "B"}}
+    Estrutura exata do array: {{"id": "A", "texto": "Resumo", "tipo": "Processo", "raia": "Departamento", "proxima": "B"}}
     Tipos de nó permitidos: "Início", "Processo", "Decisão", "Documento", "Fim"
     
     Processo do usuário: {texto}
@@ -103,9 +110,8 @@ def processar_ia(texto):
 # ==========================================
 # 4. INTERFACE
 # ==========================================
-st.title("🎨 Gerador de Fluxos (Miro Clone)")
+st.title("📊 Gerador de Fluxos de Processo")
 
-# Controle de Layout (Horizontal de fábrica)
 orientacao = st.radio(
     "Orientação do Gráfico:", 
     ["Horizontal (Esquerda p/ Direita)", "Vertical (Cima p/ Baixo)"],
@@ -115,18 +121,18 @@ orientacao = st.radio(
 aba1, aba2 = st.tabs(["🤖 Gerador IA", "✏️ Tabela de Edição"])
 
 with aba1:
-    texto_exemplo = "Ex: O setor de Compras verifica se há saldo. Se sim, envia para a Tesouraria pagar. Se não, arquiva o processo."
-    texto = st.text_area("Descreva o processo com suas condições e regras:", placeholder=texto_exemplo, height=100)
+    texto_exemplo = "Ex: O setor de Compras inicia a solicitação. Verifica se há saldo? Se SIM, envia para a Tesouraria. Se NÃO, encerra o processo."
+    texto = st.text_area("Descreva o processo de forma clara:", placeholder=texto_exemplo, height=100)
     
-    if st.button("✨ Gerar Fluxo Horizontal", type="primary"):
+    if st.button("✨ Gerar Fluxograma", type="primary"):
         if texto.strip() != "":
-            with st.spinner("Analisando condicionais e variáveis..."):
+            with st.spinner("Analisando as regras de negócio..."):
                 resultado = processar_ia(texto)
                 if resultado is not None and len(resultado) > 0:
                     st.session_state.etapas = resultado
                     st.rerun()
                 elif resultado is not None and len(resultado) == 0:
-                    st.warning("A IA não conseguiu estruturar as etapas. Tente ser mais claro no texto.")
+                    st.warning("A IA não conseguiu estruturar as etapas. Tente detalhar o início e o fim.")
         else:
             st.warning("Por favor, digite um texto.")
 
@@ -162,11 +168,9 @@ if len(st.session_state.etapas) > 0:
         if r not in raias: raias[r] = []
         raias[r].append(et)
     
-    # Aplica a Orientação Horizontal (LR) ou Vertical (TD)
     tipo_g = "graph LR" if "Horizontal" in orientacao else "graph TD"
     codigo = f"{tipo_g}\n"
     
-    # Cores Clones do Miro
     codigo += "classDef Início fill:#a7f3d0,stroke:#059669,stroke-width:2px,color:#1e293b;\n"
     codigo += "classDef Processo fill:#fef08a,stroke:#ca8a04,stroke-width:2px,color:#1e293b,rx:8px,ry:8px;\n"
     codigo += "classDef Decisão fill:#bfdbfe,stroke:#2563eb,stroke-width:2px,color:#1e293b;\n"
@@ -195,11 +199,10 @@ if len(st.session_state.etapas) > 0:
         if nome_raia != 'Geral':
             codigo += "end\n"
         
-    # Motor de Setas com suporte a SIM e NÃO
     for et in lista_de_etapas:
         if not et or "id" not in et: continue
         if et.get('proxima'):
-            conexoes = str(et['proxima']).split(",") # Aqui ele divide "C|SIM, D|NÃO"
+            conexoes = str(et['proxima']).split(",") 
             for p in conexoes:
                 p = p.strip()
                 if p:
@@ -208,10 +211,11 @@ if len(st.session_state.etapas) > 0:
                         partes = p.split("|")
                         destino = partes[0].strip().replace(' ', '_')
                         rotulo = partes[1].strip()
-                        # Renderiza a seta com a palavra
                         codigo += f"    {origem} -->|{rotulo}| {destino}\n"
                     else:
                         destino = p.replace(' ', '_')
                         codigo += f"    {origem} --> {destino}\n"
     
     renderizar_mermaid(codigo)
+
+```
