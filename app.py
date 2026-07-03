@@ -54,7 +54,7 @@ def renderizar_mermaid(codigo_mermaid, altura=800):
                     .cluster rect {{ stroke-dasharray: 4; stroke-width: 1px; rx: 8px; ry: 8px; }}
                     .cluster text {{ font-weight: bold; fill: #64748b; font-size: 14px; padding: 10px; }}
                 `,
-                flowchart: {{ useMaxWidth: false, htmlLabels: true, curve: 'basis', nodeSpacing: 50, rankSpacing: 70 }}
+                flowchart: {{ useMaxWidth: false, htmlLabels: true, curve: 'basis', nodeSpacing: 60, rankSpacing: 80 }}
             }});
         </script>
     </body>
@@ -63,32 +63,31 @@ def renderizar_mermaid(codigo_mermaid, altura=800):
     components.html(html, height=altura, scrolling=True)
 
 # ==========================================
-# 3. IA (CADEIA DE RACIOCÍNIO PARA SIM E NÃO)
+# 3. IA (GABARITO INJETADO + TEMP 0.0)
 # ==========================================
 def processar_ia(texto):
     prompt = f"""
     Você é um Arquiteto de Processos especialista em BPMN. Extraia o fluxo do texto para um JSON.
     
     REGRA CRÍTICA PARA CONDIÇÕES (SIM/NÃO):
-    Sempre que o texto apresentar uma validação, pergunta ou ramificação (Ex: "Recurso entrou?", "Foi aprovado?", "Verifica se há saldo"):
+    Sempre que o texto apresentar uma validação, dúvida ou pergunta (Ex: "Recurso entrou na conta?"):
     1. Crie uma etapa com o tipo "Decisão".
-    2. Leia o texto para descobrir a consequência se a resposta for SIM. Identifique o ID dessa próxima etapa.
-    3. Leia o texto para descobrir a consequência se a resposta for NÃO (pode ser encerrar o processo, ou voltar para uma etapa anterior). Identifique o ID exato dessa etapa.
-    4. Conecte AS DUAS SAÍDAS obrigatoriamente no campo "proxima".
-       Formato OBRIGATÓRIO: "ID_DO_SIM|SIM, ID_DO_NAO|NÃO" (Exemplo prático: "C|SIM, B|NÃO").
-       
-    OUTRAS REGRAS:
-    - A primeira etapa DEVE ser tipo "Início".
-    - A última etapa DEVE ser "Fim".
-    - Se o texto citar sistemas (SEI, Oxy, planilhas), use o tipo "Documento".
+    2. Conecte AS DUAS SAÍDAS no campo "proxima" usando o formato "ID_DO_SIM|SIM, ID_DO_NAO|NÃO".
     
-    ESTRUTURA DO JSON ESPERADA (Retorne apenas um objeto com a chave "fluxo"):
+    EXEMPLO OBRIGATÓRIO DE COMO VOCÊ DEVE RESPONDER (Copie esta estrutura):
+    Texto: "Verifica se há saldo. Se SIM, paga. Se NÃO, cancela."
+    JSON Correto:
     {{
       "fluxo": [
-        {{"id": "A", "texto": "Início da análise", "tipo": "Início", "raia": "Compras", "proxima": "B"}},
-        {{"id": "B", "texto": "Possui saldo?", "tipo": "Decisão", "raia": "Compras", "proxima": "C|SIM, D|NÃO"}}
+        {{"id": "A", "texto": "Verifica se há saldo", "tipo": "Decisão", "raia": "Geral", "proxima": "B|SIM, C|NÃO"}},
+        {{"id": "B", "texto": "Paga", "tipo": "Processo", "raia": "Geral", "proxima": ""}},
+        {{"id": "C", "texto": "Cancela", "tipo": "Processo", "raia": "Geral", "proxima": ""}}
       ]
     }}
+    
+    OUTRAS REGRAS:
+    - Sistemas (SEI, Oxy, planilhas) = tipo "Documento".
+    - Loops: Se a resposta NÃO disser para voltar a uma etapa anterior, coloque o ID da etapa antiga.
     
     Texto para analisar: {texto}
     """
@@ -96,7 +95,7 @@ def processar_ia(texto):
         completion = client.chat.completions.create(
             model="llama-3.1-8b-instant",
             messages=[{"role": "user", "content": prompt}],
-            temperature=0.0, 
+            temperature=0.0, # Mantém a lógica fria e estável
             response_format={"type": "json_object"} 
         )
         
@@ -117,7 +116,7 @@ orientacao = st.radio(
     "Orientação do Gráfico:", 
     ["Horizontal (Esquerda p/ Direita)", "Vertical (Cima p/ Baixo)"],
     horizontal=True,
-    index=1 
+    index=0 # CORRIGIDO: Agora o 0 força o sistema a iniciar sempre na Horizontal!
 )
 
 aba1, aba2 = st.tabs(["🤖 Gerador IA", "✏️ Tabela de Edição"])
@@ -127,7 +126,7 @@ with aba1:
     
     if st.button("✨ Gerar Fluxograma Exato", type="primary"):
         if texto.strip() != "":
-            with st.spinner("Analisando rotas de SIM e NÃO..."):
+            with st.spinner("Compilando lógica de ramificações (SIM/NÃO)..."):
                 resultado = processar_ia(texto)
                 if resultado is not None and len(resultado) > 0:
                     st.session_state.etapas = resultado
@@ -138,7 +137,7 @@ with aba1:
             st.warning("Por favor, digite um texto.")
 
 with aba2:
-    st.info("💡 **Dica:** Para dividir caminhos, use `ID|SIM, ID|NÃO` na coluna Próxima.")
+    st.info("💡 **Dica:** Para dividir caminhos manualmente, use `ID|SIM, ID|NÃO` na coluna Próxima.")
     st.session_state.etapas = st.data_editor(
         st.session_state.etapas, 
         use_container_width=True, 
@@ -169,6 +168,7 @@ if len(st.session_state.etapas) > 0:
         if r not in raias: raias[r] = []
         raias[r].append(et)
     
+    # Orientação controlada pelo botão (Nasce em LR - Left to Right)
     tipo_g = "graph LR" if "Horizontal" in orientacao else "graph TD"
     codigo = f"{tipo_g}\n"
     
