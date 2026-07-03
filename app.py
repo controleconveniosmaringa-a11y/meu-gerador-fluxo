@@ -18,15 +18,16 @@ else:
     st.stop()
 
 # ==========================================
-# 2. MOTOR DE DESIGN (ESTÉTICA MIRO)
+# 2. MOTOR DE DESIGN (ESTÉTICA MIRO - GIGANTE)
 # ==========================================
-def renderizar_mermaid(codigo_mermaid, altura=900):
+def renderizar_mermaid(codigo_mermaid, altura=1200):
     html = f"""
     <html>
     <head>
         <style>
             body {{ margin: 0; padding: 20px; background-color: #f4f5f9; }}
-            .mermaid {{ display: flex; justify-content: center; overflow-x: auto; padding-bottom: 20px; }}
+            .mermaid {{ display: flex; justify-content: flex-start; overflow-x: auto; padding-bottom: 40px; }}
+            .mermaid svg {{ min-width: 1500px !important; width: 100% !important; height: auto !important; }} 
         </style>
     </head>
     <body>
@@ -38,22 +39,22 @@ def renderizar_mermaid(codigo_mermaid, altura=900):
                 theme: 'base',
                 themeVariables: {{ 
                     fontFamily: 'Arial, sans-serif', 
-                    fontSize: '15px', 
+                    fontSize: '20px', 
                     lineColor: '#94a3b8',
-                    lineWidth: '2px', 
-                    clusterBkg: '#ffffff',
+                    lineWidth: '3px', 
+                    clusterBkg: 'transparent',
                     clusterBorder: '#cbd5e1'
                 }},
                 themeCSS: `
                     .node rect, .node circle, .node polygon, .node path {{ 
-                        filter: drop-shadow(0 3px 6px rgba(0,0,0,0.08));
+                        filter: drop-shadow(0 4px 8px rgba(0,0,0,0.1));
                     }}
-                    .node label {{ padding: 12px !important; }} 
-                    .edgeLabel {{ background-color: #f4f5f9 !important; padding: 4px 8px !important; font-weight: bold; color: #475569; border: 1px solid #cbd5e1; border-radius: 4px; }}
-                    .cluster rect {{ stroke-dasharray: 4; stroke-width: 1px; rx: 8px; ry: 8px; }}
-                    .cluster text {{ font-weight: bold; fill: #64748b; font-size: 14px; padding: 10px; }}
+                    .node label {{ padding: 16px !important; }} 
+                    .edgeLabel {{ background-color: #f4f5f9 !important; padding: 6px 12px !important; font-weight: bold; color: #475569; border: 1px solid #cbd5e1; border-radius: 6px; }}
+                    .cluster rect {{ stroke-dasharray: 4; stroke-width: 2px; rx: 8px; ry: 8px; }}
+                    .cluster text {{ font-weight: bold; fill: #64748b; font-size: 18px; padding: 15px; }}
                 `,
-                flowchart: {{ useMaxWidth: true, htmlLabels: true, curve: 'basis', nodeSpacing: 60, rankSpacing: 90 }}
+                flowchart: {{ useMaxWidth: false, htmlLabels: true, curve: 'basis', nodeSpacing: 100, rankSpacing: 150 }}
             }});
         </script>
     </body>
@@ -62,83 +63,57 @@ def renderizar_mermaid(codigo_mermaid, altura=900):
     components.html(html, height=altura, scrolling=True)
 
 # ==========================================
-# 3. IA (BLINDADA CONTRA BUGS E ERROS LÓGICOS)
+# 3. IA (GABARITO BLINDADO ANTI-BLOCOS SOLTOS)
 # ==========================================
 def processar_ia(texto):
     prompt = f"""
-    Você é um Arquiteto BPMN Rigoroso. Extraia o fluxo para JSON.
+    Você é um Auditor Rigoroso de Processos BPMN. Sua missão é extrair um fluxo perfeito e SEM PONTAS SOLTAS.
     
-    REGRAS DE OURO DA INTELIGÊNCIA:
-    1. A primeira etapa TEM QUE SER "Início". NENHUMA ETAPA PODE APONTAR PARA O INÍCIO.
-    2. A última etapa TEM QUE SER "Fim". O campo "proxima" do Fim DEVE ser uma string vazia "". Nunca use null.
-    3. O SEGREDO DO LOOP: Se o texto disser para "acompanhar" ou "verificar se", divida em duas etapas:
-       - Um "Processo" (Ex: Acompanhar conta-corrente).
-       - Uma "Decisão" (Ex: Recurso entrou?). Na "Decisão", o SIM avança. O NÃO volta para o ID do Processo de acompanhamento.
-    4. Decisões usam: "proxima_sim" e "proxima_nao".
-    5. Sistemas (Oxy, SEI) geram tipo "Documento".
+    REGRAS ABSOLUTAS (SOB PENA DE FALHA GRAVE):
+    1. INÍCIO E FIM OBRIGATÓRIOS: A primeira etapa TEM QUE SER do tipo "Início". A última etapa TEM QUE SER do tipo "Fim".
+    2. PROIBIDO BLOCOS SOLTOS: Toda etapa (exceto o "Fim") DEVE ter o campo "proxima" preenchido com o ID da etapa seguinte. NUNCA deixe o campo "proxima" vazio. Se uma etapa encerra o processo, a "proxima" dela deve apontar para o ID da etapa de "Fim".
+    3. CONDIÇÕES (SIM/NÃO): Se houver uma validação ou dúvida, crie uma "Decisão". O campo "proxima" DEVE ter as duas saídas: "ID_SIM|SIM, ID_NAO|NÃO".
     
     EXEMPLO GABARITO PERFEITO:
     {{
       "fluxo": [
         {{"id": "1", "texto": "Início do fluxo", "tipo": "Início", "raia": "Geral", "proxima": "2"}},
-        {{"id": "2", "texto": "Acompanhar conta-corrente", "tipo": "Processo", "raia": "Geral", "proxima": "3"}},
-        {{"id": "3", "texto": "Recurso entrou?", "tipo": "Decisão", "raia": "Geral", "proxima_sim": "4", "proxima_nao": "2"}},
-        {{"id": "4", "texto": "Lançamento no Oxy", "tipo": "Documento", "raia": "Geral", "proxima": "5"}},
+        {{"id": "2", "texto": "Há saldo?", "tipo": "Decisão", "raia": "Geral", "proxima": "3|SIM, 4|NÃO"}},
+        {{"id": "3", "texto": "Paga o pedido", "tipo": "Processo", "raia": "Geral", "proxima": "5"}},
+        {{"id": "4", "texto": "Cancela pedido", "tipo": "Processo", "raia": "Geral", "proxima": "5"}},
         {{"id": "5", "texto": "Fim do processo", "tipo": "Fim", "raia": "Geral", "proxima": ""}}
       ]
     }}
     
-    Texto do usuário: {texto}
+    Texto do usuário para analisar: {texto}
     """
     try:
         completion = client.chat.completions.create(
             model="llama-3.1-8b-instant",
             messages=[{"role": "user", "content": prompt}],
-            temperature=0.0, 
+            temperature=0.0,
             response_format={"type": "json_object"} 
         )
         
         dados = json.loads(completion.choices[0].message.content)
         fluxo = dados.get("fluxo", []) 
         
-        if not isinstance(fluxo, list):
-            return []
-
-        # --- FILTRO DE SANIDADE PYTHON (CORRIGE AS BURRICES DA IA) ---
-        for etapa in fluxo:
-            # 1. Remove qualquer "None" ou "null" que quebra o sistema
-            for chave, valor in etapa.items():
-                if valor is None:
-                    etapa[chave] = ""
-            
-            # 2. Transforma o proxima_sim e proxima_nao em setas rotuladas
-            if etapa.get("tipo") == "Decisão":
-                sim = etapa.pop("proxima_sim", "")
-                nao = etapa.pop("proxima_nao", "")
-                
-                if sim and nao:
-                    etapa["proxima"] = f"{sim}|SIM, {nao}|NÃO"
-                elif sim:
-                    etapa["proxima"] = f"{sim}|SIM"
-                elif nao:
-                    etapa["proxima"] = f"{nao}|NÃO"
-                    
         return fluxo
         
     except Exception as e:
-        # Se a IA falhar feio, o Python não deixa o site cair
+        st.error(f"Erro ao conectar com a IA: {str(e)}")
         return []
 
 # ==========================================
-# 4. INTERFACE E APLICATIVO
+# 4. INTERFACE
 # ==========================================
-st.title("🎨 Gerador de Fluxos (Clone do Miro)")
+st.title("🎨 Gerador de Fluxos")
 
 orientacao = st.radio(
     "Orientação do Gráfico:", 
     ["Horizontal (Esquerda p/ Direita)", "Vertical (Cima p/ Baixo)"],
     horizontal=True,
-    index=1 # Vertical como padrão
+    index=1 
 )
 
 aba1, aba2 = st.tabs(["🤖 Gerador IA", "✏️ Tabela de Edição"])
@@ -148,19 +123,18 @@ with aba1:
     
     if st.button("✨ Gerar Fluxograma Exato", type="primary"):
         if texto.strip() != "":
-            with st.spinner("Estruturando processo rigorosamente..."):
+            with st.spinner("Compilando lógica sem pontas soltas..."):
                 resultado = processar_ia(texto)
-                # Só atualiza a tabela se a IA devolver um resultado válido, evitando tela branca
                 if resultado and len(resultado) > 0:
                     st.session_state.etapas = resultado
                     st.rerun()
                 else:
-                    st.error("A IA não conseguiu estruturar as etapas corretamente. Tente novamente.")
+                    st.warning("A IA não conseguiu estruturar as etapas.")
         else:
             st.warning("Por favor, digite um texto.")
 
 with aba2:
-    st.info("💡 **Tabela de Edição:** Agora o sistema limpa erros de `None` automaticamente.")
+    st.info("💡 **Dica:** Para dividir caminhos, use `ID|SIM, ID|NÃO` na coluna Próxima.")
     st.session_state.etapas = st.data_editor(
         st.session_state.etapas, 
         use_container_width=True, 
@@ -176,7 +150,7 @@ with aba2:
     )
 
 # ==========================================
-# 5. GERADOR MERMAID & DOWNLOAD
+# 5. GERADOR MERMAID (CORES DO MIRO)
 # ==========================================
 if len(st.session_state.etapas) > 0:
     st.divider()
