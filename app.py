@@ -6,7 +6,7 @@ import json
 # ==========================================
 # 1. CONFIGURAÇÃO
 # ==========================================
-st.set_page_config(page_title="Gerador de Fluxos de Processo", page_icon="📊", layout="wide")
+st.set_page_config(page_title="Gerador de Fluxos (Miro Clone)", page_icon="🎨", layout="wide")
 
 if "etapas" not in st.session_state: 
     st.session_state.etapas = []
@@ -18,7 +18,7 @@ else:
     st.stop()
 
 # ==========================================
-# 2. MOTOR DE DESIGN (GRANDE E CORPORATIVO)
+# 2. MOTOR DE DESIGN (ESTÉTICA MIRO)
 # ==========================================
 def renderizar_mermaid(codigo_mermaid, altura=800):
     html = f"""
@@ -26,9 +26,8 @@ def renderizar_mermaid(codigo_mermaid, altura=800):
     <head>
         <style>
             body {{ margin: 0; padding: 20px; background-color: #f4f5f9; }}
-            /* Permite rolagem em vez de esmagar o gráfico */
             .mermaid {{ display: flex; justify-content: flex-start; overflow-x: auto; padding-bottom: 20px; }}
-            .mermaid svg {{ min-width: 1200px !important; height: auto !important; }} 
+            .mermaid svg {{ min-width: 1000px !important; height: auto !important; }} 
         </style>
     </head>
     <body>
@@ -40,25 +39,22 @@ def renderizar_mermaid(codigo_mermaid, altura=800):
                 theme: 'base',
                 themeVariables: {{ 
                     fontFamily: 'Arial, sans-serif', 
-                    fontSize: '16px', /* Fonte maior e mais legível */
-                    lineColor: '#64748b',
-                    lineWidth: '3px', /* Setas mais encorpadas */
-                    clusterBkg: '#ffffff',
+                    fontSize: '15px',
+                    lineColor: '#94a3b8',
+                    lineWidth: '2px',
+                    clusterBkg: 'transparent',
                     clusterBorder: '#cbd5e1'
                 }},
                 themeCSS: `
-                    /* Sombras e caixas mais espaçosas */
                     .node rect, .node circle, .node polygon, .node path {{ 
-                        filter: drop-shadow(0 4px 6px rgba(0,0,0,0.1));
+                        filter: drop-shadow(0 2px 5px rgba(0,0,0,0.08));
                     }}
-                    .node label {{ padding: 10px !important; }}
-                    /* Rótulos das setas (SIM/NÃO) maiores */
-                    .edgeLabel {{ background-color: #ffffff !important; padding: 4px 10px !important; font-weight: bold; color: #1e293b; font-size: 14px; border-radius: 4px; border: 1px solid #e2e8f0; }}
-                    .cluster rect {{ stroke-dasharray: 0; stroke-width: 2px; rx: 12px; ry: 12px; }}
-                    .cluster text {{ font-weight: bold; fill: #475569; font-size: 16px; padding: 10px; }}
+                    .node label {{ padding: 8px !important; }}
+                    .edgeLabel {{ background-color: #f4f5f9 !important; padding: 2px 8px !important; font-weight: bold; color: #475569; border: 1px solid #cbd5e1; border-radius: 4px; }}
+                    .cluster rect {{ stroke-dasharray: 4; stroke-width: 1px; rx: 8px; ry: 8px; }}
+                    .cluster text {{ font-weight: bold; fill: #64748b; font-size: 14px; padding: 10px; }}
                 `,
-                /* Espaçamento extra entre as caixas para o gráfico não ficar amontoado */
-                flowchart: {{ useMaxWidth: false, htmlLabels: true, curve: 'basis', nodeSpacing: 60, rankSpacing: 80 }}
+                flowchart: {{ useMaxWidth: false, htmlLabels: true, curve: 'basis', nodeSpacing: 50, rankSpacing: 70 }}
             }});
         </script>
     </body>
@@ -67,31 +63,31 @@ def renderizar_mermaid(codigo_mermaid, altura=800):
     components.html(html, height=altura, scrolling=True)
 
 # ==========================================
-# 3. IA (BLINDAGEM CONTRA O ERRO SIM/SEI)
+# 3. IA (TRAVADA EM LÓGICA PURA - TEMP 0.0)
 # ==========================================
 def processar_ia(texto):
     prompt = f"""
-    Você é um Arquiteto de Processos. Sua missão é estruturar o texto do usuário em um JSON perfeito.
+    Você é um compilador lógico. Converta o texto em um JSON exato. NUNCA mude o resultado para o mesmo texto.
     
-    REGRAS DE OURO:
-    1. LIGAÇÃO DO INÍCIO: Todo fluxo deve ter um nó do tipo "Início". O campo "proxima" deste nó DEVE OBRIGATORIAMENTE estar preenchido com o ID da etapa seguinte.
-    2. CONDIÇÕES (DECISÃO): Se o texto indicar verificação ou cenário de "Se sim / Se não", você DEVE criar uma "Decisão".
-       - No campo "proxima", mapeie as DUAS SAÍDAS usando ID|Texto.
-       - EXTREMAMENTE IMPORTANTE: Use EXATAMENTE as palavras "SIM" e "NÃO" nas setas (Ex: "C|SIM, D|NÃO").
-       - NUNCA confunda a palavra "SIM" com a palavra "SEI" (sistema).
-    3. Documentos e sistemas (ex: SEI, Oxy) = usar tipo "Documento" apenas no campo "texto".
+    REGRAS LÓGICAS ESTRITAS:
+    1. INÍCIO: A primeira etapa DEVE ser tipo "Início".
+    2. CONDIÇÕES (Decisão): Se houver uma pergunta ou "Se SIM / Se NÃO", crie uma etapa "Decisão".
+       - Mapeie as saídas no formato ID|Texto. Ex: "D|SIM, E|NÃO".
+    3. LOOPS (Voltar atrás): Se uma condição disser para "voltar" para uma etapa anterior, use o ID exato dessa etapa antiga. Ex: O "NÃO" volta para a etapa "C", então escreva "C|NÃO".
+    4. SISTEMAS (Oxy, SEI, formulários): Se mencionar preencher formulário, sistema ou anexo, o tipo DEVE ser "Documento".
     
-    Retorne um objeto JSON contendo APENAS a chave "fluxo".
-    Estrutura exata do array: {{"id": "A", "texto": "Resumo", "tipo": "Processo", "raia": "Departamento", "proxima": "B"}}
-    Tipos permitidos: "Início", "Processo", "Decisão", "Documento", "Fim"
+    ESTRUTURA DO JSON (Retorne apenas um objeto com a chave "fluxo"):
+    {{"fluxo": [ {{"id": "A", "texto": "Resumo", "tipo": "Processo", "raia": "Departamento", "proxima": "B"}} ]}}
     
-    Processo do usuário: {texto}
+    Tipos permitidos: "Início", "Processo", "Decisão", "Documento", "Fim".
+    
+    Texto para analisar: {texto}
     """
     try:
         completion = client.chat.completions.create(
             model="llama-3.1-8b-instant",
             messages=[{"role": "user", "content": prompt}],
-            temperature=0.1,
+            temperature=0.0, # A MÁGICA ESTÁ AQUI: 0.0 = SEMPRE A MESMA RESPOSTA
             response_format={"type": "json_object"} 
         )
         
@@ -106,50 +102,50 @@ def processar_ia(texto):
 # ==========================================
 # 4. INTERFACE
 # ==========================================
-st.title("📊 Gerador de Fluxos de Processo")
+st.title("🎨 Gerador de Fluxos (Clone do Miro)")
 
 orientacao = st.radio(
     "Orientação do Gráfico:", 
     ["Horizontal (Esquerda p/ Direita)", "Vertical (Cima p/ Baixo)"],
-    horizontal=True
+    horizontal=True,
+    index=1 # Deixei Vertical como padrão para ficar igual ao seu print do Miro
 )
 
 aba1, aba2 = st.tabs(["🤖 Gerador IA", "✏️ Tabela de Edição"])
 
 with aba1:
-    texto_exemplo = "Ex: O setor de Compras inicia a solicitação. Verifica se há saldo? Se SIM, envia para a Tesouraria. Se NÃO, encerra o processo."
-    texto = st.text_area("Descreva o processo de forma clara:", placeholder=texto_exemplo, height=100)
+    texto = st.text_area("Cole o texto do seu processo aqui:", height=100)
     
-    if st.button("✨ Gerar Fluxograma", type="primary"):
+    if st.button("✨ Gerar Fluxograma Exato", type="primary"):
         if texto.strip() != "":
-            with st.spinner("Analisando as regras de negócio..."):
+            with st.spinner("Compilando lógica exata..."):
                 resultado = processar_ia(texto)
                 if resultado is not None and len(resultado) > 0:
                     st.session_state.etapas = resultado
                     st.rerun()
                 elif resultado is not None and len(resultado) == 0:
-                    st.warning("A IA não conseguiu estruturar as etapas. Tente detalhar o início e o fim.")
+                    st.warning("A IA não conseguiu estruturar as etapas.")
         else:
             st.warning("Por favor, digite um texto.")
 
 with aba2:
-    st.info("💡 **Dica:** Para dividir um caminho manualmente, escreva na coluna 'Próxima': `ID|SIM, ID|NÃO`")
+    st.info("💡 **Dica:** Para dividir caminhos, use `ID|SIM, ID|NÃO` na coluna Próxima.")
     st.session_state.etapas = st.data_editor(
         st.session_state.etapas, 
         use_container_width=True, 
         num_rows="dynamic",
         column_config={
             "tipo": st.column_config.SelectboxColumn(
-                "Tipo de Nó",
+                "Tipo",
                 options=["Início", "Processo", "Decisão", "Documento", "Fim"],
                 required=True
             ),
-            "proxima": st.column_config.TextColumn("Próxima (Use a barra reta | para texto na seta)")
+            "proxima": st.column_config.TextColumn("Próxima (Use | para seta)")
         }
     )
 
 # ==========================================
-# 5. CONSTRUTOR MERMAID (RENDERIZAÇÃO)
+# 5. GERADOR MERMAID (CORES DO MIRO)
 # ==========================================
 if len(st.session_state.etapas) > 0:
     st.divider()
@@ -167,11 +163,12 @@ if len(st.session_state.etapas) > 0:
     tipo_g = "graph LR" if "Horizontal" in orientacao else "graph TD"
     codigo = f"{tipo_g}\n"
     
+    # Cores Exatas da sua Imagem
     codigo += "classDef Início fill:#a7f3d0,stroke:#059669,stroke-width:2px,color:#1e293b;\n"
     codigo += "classDef Processo fill:#fef08a,stroke:#ca8a04,stroke-width:2px,color:#1e293b,rx:8px,ry:8px;\n"
     codigo += "classDef Decisão fill:#bfdbfe,stroke:#2563eb,stroke-width:2px,color:#1e293b;\n"
     codigo += "classDef Documento fill:#fef08a,stroke:#ca8a04,stroke-width:2px,color:#1e293b;\n"
-    codigo += "classDef Fim fill:#fca5a5,stroke:#b91c1c,stroke-width:2px,color:#1e293b;\n\n"
+    codigo += "classDef Fim fill:#a7f3d0,stroke:#059669,stroke-width:2px,color:#1e293b;\n\n"
     
     for nome_raia, nodes in raias.items():
         if nome_raia != 'Geral':
@@ -183,6 +180,7 @@ if len(st.session_state.etapas) > 0:
             txt = str(et['texto']).replace('"', "'")
             cls = str(et.get('tipo', 'Processo'))
             
+            # Formas geométricas idênticas
             if cls == "Decisão": 
                 codigo += f'    {id_n}{{"{txt}"}}:::Decisão\n'
             elif cls == "Início":
@@ -190,7 +188,7 @@ if len(st.session_state.etapas) > 0:
             elif cls == "Fim":
                 codigo += f'    {id_n}(["{txt}"]):::Fim\n'
             elif cls == "Documento":
-                codigo += f'    {id_n}[/"{txt}"/]:::{cls}\n'
+                codigo += f'    {id_n}[/"{txt}"/]:::Documento\n' # Paralelogramo inclinado
             else: 
                 codigo += f'    {id_n}["{txt}"]:::Processo\n'
                 
