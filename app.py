@@ -20,12 +20,11 @@ else:
 # ==========================================
 # 2. MOTOR DE DESIGN (CLONE DO MIRO)
 # ==========================================
-def renderizar_mermaid(codigo_mermaid, altura=900):
+def renderizar_mermaid(codigo_mermaid, altura=700):
     html = f"""
     <html>
     <head>
         <style>
-            /* Fundo suave idêntico ao canvas do Miro */
             body {{ margin: 0; padding: 20px; background-color: #f4f5f9; }}
             .mermaid {{ display: flex; justify-content: center; }}
         </style>
@@ -40,19 +39,16 @@ def renderizar_mermaid(codigo_mermaid, altura=900):
                 themeVariables: {{ 
                     fontFamily: 'Arial, sans-serif', 
                     fontSize: '13px',
-                    lineColor: '#94a3b8', /* Cinza das setas */
+                    lineColor: '#94a3b8',
                     lineWidth: '2px',
                     clusterBkg: 'transparent',
                     clusterBorder: '#cbd5e1'
                 }},
                 themeCSS: `
-                    /* Sombra idêntica aos cards do Miro */
                     .node rect, .node circle, .node polygon, .node path {{ 
                         filter: drop-shadow(0 2px 5px rgba(0,0,0,0.06));
                     }}
-                    /* Textos flutuantes nas setas sem fundo branco forte */
-                    .edgeLabel {{ background-color: #f4f5f9 !important; padding: 2px 6px !important; font-weight: normal; color: #475569; }}
-                    /* Raias mais discretas para não atrapalhar o visual clean */
+                    .edgeLabel {{ background-color: #f4f5f9 !important; padding: 2px 6px !important; font-weight: bold; color: #475569; }}
                     .cluster rect {{ stroke-dasharray: 4; stroke-width: 1px; }}
                     .cluster text {{ font-weight: bold; fill: #64748b; font-size: 14px; }}
                 `,
@@ -65,19 +61,26 @@ def renderizar_mermaid(codigo_mermaid, altura=900):
     components.html(html, height=altura, scrolling=True)
 
 # ==========================================
-# 3. IA ATUALIZADA (COM TEXTOS NAS SETAS E DOCUMENTOS)
+# 3. IA (LÓGICA CONDICIONAL FORÇADA)
 # ==========================================
 def processar_ia(texto):
     prompt = f"""
-    Você é um Analista mapeando fluxos de sistemas.
-    REGRAS DE FORMATAÇÃO:
-    1. Se houver geração, anexo ou leitura de arquivo (ex: processo SEI, relatórios, sistema Oxy), use o tipo "Documento".
-    2. Se houver verificações, use "Decisão".
-    3. Para escrever nas setas (como "SIM" ou "NÃO"), coloque um pipe `|` e o texto na chave proxima. Exemplo: "B|SIM, C|NÃO".
+    Você é um Arquiteto de Processos. Sua missão é estruturar o texto do usuário em um JSON perfeito.
     
-    Retorne um objeto JSON com a chave "fluxo".
-    Estrutura: {{"id": "A", "texto": "Resumo", "tipo": "Processo", "raia": "", "proxima": "B|Verificar"}}
-    Tipos permitidos: "Início", "Processo", "Decisão", "Documento", "Fim"
+    REGRAS DE OURO PARA CONDIÇÕES (DECISÃO):
+    Se o texto indicar uma verificação, dúvida, validação ou cenário de "Se sim / Se não" (Ex: "Recurso entrou na conta?"), VOCÊ É OBRIGADO A:
+    1. Criar uma etapa do tipo "Decisão".
+    2. No campo "proxima", mapear as DUAS SAÍDAS usando o formato ID|Texto separado por vírgula.
+       - Exemplo Perfeito: "proxima": "C|SIM, D|NÃO" (Onde C e D são os IDs dos próximos passos).
+       - NUNCA deixe uma Decisão com apenas uma saída.
+       
+    OUTRAS REGRAS:
+    - Sistemas, extratos ou relatórios (ex: SEI, Oxy) = usar tipo "Documento".
+    - Ações executadas = usar tipo "Processo".
+    
+    Retorne um objeto JSON contendo APENAS a chave "fluxo".
+    Estrutura exata do array: {{"id": "A", "texto": "Resumo da ação", "tipo": "Processo", "raia": "Departamento", "proxima": "B"}}
+    Tipos de nó permitidos: "Início", "Processo", "Decisão", "Documento", "Fim"
     
     Processo do usuário: {texto}
     """
@@ -100,26 +103,35 @@ def processar_ia(texto):
 # ==========================================
 # 4. INTERFACE
 # ==========================================
-st.title("🎨 Gerador de Fluxos (Visual Miro)")
+st.title("🎨 Gerador de Fluxos (Miro Clone)")
+
+# Controle de Layout (Horizontal de fábrica)
+orientacao = st.radio(
+    "Orientação do Gráfico:", 
+    ["Horizontal (Esquerda p/ Direita)", "Vertical (Cima p/ Baixo)"],
+    horizontal=True
+)
 
 aba1, aba2 = st.tabs(["🤖 Gerador IA", "✏️ Tabela de Edição"])
 
 with aba1:
-    texto = st.text_area("Descreva o processo (Opcional: cite onde devem ter anexos ou sistemas):", height=100)
-    if st.button("✨ Gerar Fluxo Estilo Miro", type="primary"):
+    texto_exemplo = "Ex: O setor de Compras verifica se há saldo. Se sim, envia para a Tesouraria pagar. Se não, arquiva o processo."
+    texto = st.text_area("Descreva o processo com suas condições e regras:", placeholder=texto_exemplo, height=100)
+    
+    if st.button("✨ Gerar Fluxo Horizontal", type="primary"):
         if texto.strip() != "":
-            with st.spinner("Desenhando o canvas..."):
+            with st.spinner("Analisando condicionais e variáveis..."):
                 resultado = processar_ia(texto)
                 if resultado is not None and len(resultado) > 0:
                     st.session_state.etapas = resultado
                     st.rerun()
                 elif resultado is not None and len(resultado) == 0:
-                    st.warning("A IA não conseguiu extrair etapas.")
+                    st.warning("A IA não conseguiu estruturar as etapas. Tente ser mais claro no texto.")
         else:
             st.warning("Por favor, digite um texto.")
 
 with aba2:
-    st.info("💡 **Dica:** Para colocar texto numa seta, escreva na coluna 'Próxima' assim: `ID|Texto` (Ex: `C|SIM`)")
+    st.info("💡 **Dica:** Para dividir um caminho manualmente, escreva na coluna 'Próxima': `ID|SIM, ID|NÃO`")
     st.session_state.etapas = st.data_editor(
         st.session_state.etapas, 
         use_container_width=True, 
@@ -130,12 +142,12 @@ with aba2:
                 options=["Início", "Processo", "Decisão", "Documento", "Fim"],
                 required=True
             ),
-            "proxima": st.column_config.TextColumn("Próxima (Use ID|Texto para setas)")
+            "proxima": st.column_config.TextColumn("Próxima (Use a barra reta | para criar texto na seta)")
         }
     )
 
 # ==========================================
-# 5. GERADOR DE CÓDIGO (APLICADOR DE ESTÉTICA MIRO)
+# 5. CONSTRUTOR MERMAID (RENDERIZAÇÃO)
 # ==========================================
 if len(st.session_state.etapas) > 0:
     st.divider()
@@ -150,16 +162,17 @@ if len(st.session_state.etapas) > 0:
         if r not in raias: raias[r] = []
         raias[r].append(et)
     
-    codigo = "graph TD\n"
+    # Aplica a Orientação Horizontal (LR) ou Vertical (TD)
+    tipo_g = "graph LR" if "Horizontal" in orientacao else "graph TD"
+    codigo = f"{tipo_g}\n"
     
-    # === AQUI ESTÃO AS CORES EXATAS DA SUA IMAGEM ===
+    # Cores Clones do Miro
     codigo += "classDef Início fill:#a7f3d0,stroke:#059669,stroke-width:2px,color:#1e293b;\n"
     codigo += "classDef Processo fill:#fef08a,stroke:#ca8a04,stroke-width:2px,color:#1e293b,rx:8px,ry:8px;\n"
     codigo += "classDef Decisão fill:#bfdbfe,stroke:#2563eb,stroke-width:2px,color:#1e293b;\n"
     codigo += "classDef Documento fill:#fef08a,stroke:#ca8a04,stroke-width:2px,color:#1e293b;\n"
     codigo += "classDef Fim fill:#a7f3d0,stroke:#059669,stroke-width:2px,color:#1e293b;\n\n"
     
-    # Montagem dos nós
     for nome_raia, nodes in raias.items():
         if nome_raia != 'Geral':
             nome_limpo = str(nome_raia).replace(" ", "_").replace("-", "_")
@@ -170,33 +183,32 @@ if len(st.session_state.etapas) > 0:
             txt = str(et['texto']).replace('"', "'")
             cls = str(et.get('tipo', 'Processo'))
             
-            # Formatos visuais (Pílula, Retângulo Arredondado, Losango, Paralelogramo)
             if cls == "Decisão": 
                 codigo += f'    {id_n}{{"{txt}"}}:::Decisão\n'
             elif cls == "Início" or cls == "Fim":
                 codigo += f'    {id_n}(["{txt}"]):::{cls}\n'
             elif cls == "Documento":
-                codigo += f'    {id_n}[/"{txt}"/]:::{cls}\n' # Paralelogramo para sistemas/anexos
+                codigo += f'    {id_n}[/"{txt}"/]:::{cls}\n'
             else: 
                 codigo += f'    {id_n}["{txt}"]:::Processo\n'
                 
         if nome_raia != 'Geral':
             codigo += "end\n"
         
-    # Montagem das Setas com suporte a textos (SIM, NÃO, etc)
+    # Motor de Setas com suporte a SIM e NÃO
     for et in lista_de_etapas:
         if not et or "id" not in et: continue
         if et.get('proxima'):
-            conexoes = str(et['proxima']).split(",")
+            conexoes = str(et['proxima']).split(",") # Aqui ele divide "C|SIM, D|NÃO"
             for p in conexoes:
                 p = p.strip()
                 if p:
                     origem = str(et['id']).replace(' ', '_')
-                    # Verifica se o usuário ou a IA colocou o Pipe (|) para texto na seta
                     if "|" in p:
                         partes = p.split("|")
                         destino = partes[0].strip().replace(' ', '_')
                         rotulo = partes[1].strip()
+                        # Renderiza a seta com a palavra
                         codigo += f"    {origem} -->|{rotulo}| {destino}\n"
                     else:
                         destino = p.replace(' ', '_')
