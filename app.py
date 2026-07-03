@@ -18,43 +18,37 @@ else:
     st.stop()
 
 # ==========================================
-# 2. MOTOR DE DESIGN (ESTÉTICA MIRO - GIGANTE)
+# 2. MOTOR DE DESIGN (ESTÉTICA MIRO - TAMANHO EQUILIBRADO)
 # ==========================================
-def renderizar_mermaid(codigo_mermaid, altura=1200):
+def renderizar_mermaid(codigo_mermaid, scale, orientacao, altura=900):
+    # CSS dinâmico baseado na orientação
+    max_height = "1000px" if orientacao == "Vertical" else "none"
     html = f"""
     <html>
     <head>
         <style>
             body {{ margin: 0; padding: 20px; background-color: #f4f5f9; }}
-            .mermaid {{ display: flex; justify-content: flex-start; overflow-x: auto; padding-bottom: 40px; }}
-            .mermaid svg {{ min-width: 1500px !important; width: 100% !important; height: auto !important; }} 
+            .mermaid-wrapper {{ 
+                display: flex; justify-content: center; overflow: auto; 
+                max-height: {max_height}; width: 100%;
+            }}
+            #graph-container {{ 
+                transform: scale({scale}); 
+                transform-origin: top center; 
+                transition: transform 0.2s;
+            }}
         </style>
     </head>
     <body>
-        <div class="mermaid">{codigo_mermaid}</div>
+        <div class="mermaid-wrapper">
+            <div id="graph-container" class="mermaid">{codigo_mermaid}</div>
+        </div>
         <script type="module">
             import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
             mermaid.initialize({{ 
-                startOnLoad: true, 
-                theme: 'base',
-                themeVariables: {{ 
-                    fontFamily: 'Arial, sans-serif', 
-                    fontSize: '20px', 
-                    lineColor: '#94a3b8',
-                    lineWidth: '3px', 
-                    clusterBkg: 'transparent',
-                    clusterBorder: '#cbd5e1'
-                }},
-                themeCSS: `
-                    .node rect, .node circle, .node polygon, .node path {{ 
-                        filter: drop-shadow(0 4px 8px rgba(0,0,0,0.1));
-                    }}
-                    .node label {{ padding: 16px !important; }} 
-                    .edgeLabel {{ background-color: #f4f5f9 !important; padding: 6px 12px !important; font-weight: bold; color: #475569; border: 1px solid #cbd5e1; border-radius: 6px; }}
-                    .cluster rect {{ stroke-dasharray: 4; stroke-width: 2px; rx: 8px; ry: 8px; }}
-                    .cluster text {{ font-weight: bold; fill: #64748b; font-size: 18px; padding: 15px; }}
-                `,
-                flowchart: {{ useMaxWidth: false, htmlLabels: true, curve: 'basis', nodeSpacing: 100, rankSpacing: 150 }}
+                startOnLoad: true, theme: 'base',
+                themeVariables: {{ fontFamily: 'Arial', fontSize: '16px', lineColor: '#94a3b8', lineWidth: '2px' }},
+                flowchart: {{ useMaxWidth: false, curve: 'basis', nodeSpacing: 80, rankSpacing: 100 }}
             }});
         </script>
     </body>
@@ -63,162 +57,80 @@ def renderizar_mermaid(codigo_mermaid, altura=1200):
     components.html(html, height=altura, scrolling=True)
 
 # ==========================================
-# 3. IA (BLINDADA CONTRA BUGS E ERROS LÓGICOS)
+# 3. IA (BLINDADA)
 # ==========================================
 def processar_ia(texto):
-    # O prompt agora exige explicitamente o formato JSON para evitar o erro 400
-    prompt = f"""
-    Você é um Arquiteto BPMN. Responda estritamente no formato JSON.
-    Extraia o fluxo de processo para um JSON.
-    
-    REGRAS:
-    1. INÍCIO E FIM OBRIGATÓRIOS: A primeira etapa TEM QUE SER "Início". A última TEM QUE SER "Fim".
-    2. PROIBIDO BLOCOS SOLTOS: Toda etapa (exceto o "Fim") DEVE ter o campo "proxima" preenchido com o ID da etapa seguinte.
-    3. CONDIÇÕES (SIM/NÃO): Se houver dúvida/validação, crie uma "Decisão". O campo "proxima" DEVE ter: "ID_SIM|SIM, ID_NAO|NÃO".
-    
-    Texto do usuário: {texto}
-    """
+    prompt = f"""Extraia o fluxo de processo para JSON.
+    Regras: Início e Fim obrigatórios. Decisões têm "proxima_sim" e "proxima_nao".
+    Se "acompanhar/verificar", o NÃO volta para o ID anterior.
+    Retorne apenas JSON: {{"fluxo": [{{"id": "1", "texto": "Início", "tipo": "Início", "proxima": "2"}}, ...]}}
+    Texto: {texto}"""
     try:
-        completion = client.chat.completions.create(
+        response = client.chat.completions.create(
             model="llama-3.1-8b-instant",
             messages=[{"role": "user", "content": prompt}],
             temperature=0.0,
-            response_format={"type": "json_object"} 
+            response_format={"type": "json_object"}
         )
-        
-        dados = json.loads(completion.choices[0].message.content)
-        fluxo = dados.get("fluxo", []) 
-        
+        data = json.loads(response.choices[0].message.content)
+        fluxo = data.get("fluxo", [])
+        for et in fluxo:
+            for k, v in et.items():
+                if v is None: et[k] = ""
+            if et.get("tipo") == "Decisão":
+                s = et.pop("proxima_sim", "")
+                n = et.pop("proxima_nao", "")
+                if s and n: et["proxima"] = f"{s}|SIM, {n}|NÃO"
+                elif s: et["proxima"] = f"{s}|SIM"
+                elif n: et["proxima"] = f"{n}|NÃO"
         return fluxo
-        
-    except Exception as e:
-        st.error(f"Erro ao conectar com a IA: {str(e)}")
-        return []
+    except: return []
 
 # ==========================================
 # 4. INTERFACE
 # ==========================================
 st.title("🎨 Gerador de Fluxos")
 
-orientacao = st.radio(
-    "Orientação do Gráfico:", 
-    ["Horizontal (Esquerda p/ Direita)", "Vertical (Cima p/ Baixo)"],
-    horizontal=True,
-    index=1 
-)
+col1, col2 = st.columns([2, 1])
+with col1:
+    texto_processo = st.text_area("Descreva o processo:", height=150)
+    if st.button("✨ Gerar Fluxograma"):
+        if texto_processo.strip():
+            st.session_state.etapas = processar_ia(texto_processo)
+            st.rerun()
 
-aba1, aba2 = st.tabs(["🤖 Gerador IA", "✏️ Tabela de Edição"])
+with col2:
+    zoom = st.slider("Ajustar Zoom", 0.5, 2.0, 1.0, 0.1)
+    orientacao = st.radio("Direção", ["Horizontal", "Vertical"], horizontal=True, index=1)
 
-with aba1:
-    texto = st.text_area("Cole o texto do seu processo aqui:", height=200)
-    
-    if st.button("✨ Gerar Fluxograma Exato", type="primary"):
-        if texto.strip() != "":
-            with st.spinner("Estruturando processo..."):
-                resultado = processar_ia(texto)
-                if resultado and len(resultado) > 0:
-                    st.session_state.etapas = resultado
-                    st.rerun()
-                else:
-                    st.warning("A IA não conseguiu estruturar as etapas.")
-        else:
-            st.warning("Por favor, digite um texto.")
-
-with aba2:
-    st.session_state.etapas = st.data_editor(
-        st.session_state.etapas, 
-        use_container_width=True, 
-        num_rows="dynamic",
-        column_config={
-            "tipo": st.column_config.SelectboxColumn(
-                "Tipo",
-                options=["Início", "Processo", "Decisão", "Documento", "Fim"],
-                required=True
-            ),
-            "proxima": st.column_config.TextColumn("Próxima (Use | para seta)")
-        }
-    )
+st.session_state.etapas = st.data_editor(st.session_state.etapas, num_rows="dynamic", use_container_width=True)
 
 # ==========================================
-# 5. GERADOR MERMAID (CORES DO MIRO)
+# 5. GERADOR E RENDERIZAÇÃO
 # ==========================================
-if len(st.session_state.etapas) > 0:
+if st.session_state.etapas:
     st.divider()
-    
-    lista_de_etapas = st.session_state.etapas
-    
-    # BLINDAGEM EXTRA: Força caixas vazias a irem para o "Fim"
-    id_fim = next((str(e["id"]) for e in lista_de_etapas if e["tipo"] == "Fim"), "999")
-    if id_fim == "999":
-        lista_de_etapas.append({"id": "999", "texto": "Fim do Processo", "tipo": "Fim", "raia": "Geral", "proxima": ""})
-        
-    for et in lista_de_etapas:
+    id_fim = next((str(e["id"]) for e in st.session_state.etapas if e["tipo"] == "Fim"), "999")
+    for et in st.session_state.etapas:
         if et["tipo"] != "Fim" and not str(et.get("proxima", "")).strip():
             et["proxima"] = id_fim
 
-    raias = {}
-    for et in lista_de_etapas:
-        if not et or "id" not in et: continue
-        r = et.get('raia', 'Geral')
-        if not r: r = 'Geral'
-        if r not in raias: raias[r] = []
-        raias[r].append(et)
+    codigo = "graph TD\n" if orientacao == "Vertical" else "graph LR\n"
+    codigo += "classDef default fill:#f9f9f9,stroke:#333; classDef Decisão fill:#bfdbfe,stroke:#2563eb;\n"
     
-    tipo_g = "graph LR" if "Horizontal" in orientacao else "graph TD"
-    codigo = f"{tipo_g}\n"
-    
-    codigo += "classDef Início fill:#a7f3d0,stroke:#059669,stroke-width:2px,color:#1e293b;\n"
-    codigo += "classDef Processo fill:#fef08a,stroke:#ca8a04,stroke-width:2px,color:#1e293b,rx:8px,ry:8px;\n"
-    codigo += "classDef Decisão fill:#bfdbfe,stroke:#2563eb,stroke-width:2px,color:#1e293b;\n"
-    codigo += "classDef Documento fill:#fef08a,stroke:#ca8a04,stroke-width:2px,color:#1e293b;\n"
-    codigo += "classDef Fim fill:#a7f3d0,stroke:#059669,stroke-width:2px,color:#1e293b;\n\n"
-    
-    for nome_raia, nodes in raias.items():
-        if nome_raia != 'Geral':
-            nome_limpo = str(nome_raia).replace(" ", "_").replace("-", "_")
-            codigo += f"subgraph {nome_limpo}[{nome_raia}]\n"
-            
-        for et in nodes:
-            id_n = str(et['id']).replace(" ", "_")
-            txt = str(et['texto']).replace('"', "'")
-            cls = str(et.get('tipo', 'Processo'))
-            
-            if cls == "Decisão": codigo += f'    {id_n}{{"{txt}"}}:::Decisão\n'
-            elif cls == "Início": codigo += f'    {id_n}(["{txt}"]):::Início\n'
-            elif cls == "Fim": codigo += f'    {id_n}(["{txt}"]):::Fim\n'
-            elif cls == "Documento": codigo += f'    {id_n}[/"{txt}"/]:::Documento\n'
-            else: codigo += f'    {id_n}["{txt}"]:::Processo\n'
-                
-        if nome_raia != 'Geral':
-            codigo += "end\n"
+    for et in st.session_state.etapas:
+        i, t, ty = str(et['id']).replace(' ','_'), str(et['texto']).replace('"', "'"), et.get('tipo', 'Processo')
+        if ty == "Decisão": codigo += f'{i}{{"{t}"}}:::Decisão\n'
+        else: codigo += f'{i}["{t}"]\n'
         
-    for et in lista_de_etapas:
-        if not et or "id" not in et: continue
         if et.get('proxima'):
-            conexoes = str(et['proxima']).split(",") 
-            for p in conexoes:
-                p = p.strip()
-                if p:
-                    origem = str(et['id']).replace(' ', '_')
-                    if "|" in p:
-                        partes = p.split("|")
-                        destino = partes[0].strip().replace(' ', '_')
-                        rotulo = partes[1].strip()
-                        codigo += f"    {origem} -->|{rotulo}| {destino}\n"
-                    else:
-                        destino = p.replace(' ', '_')
-                        codigo += f"    {origem} --> {destino}\n"
-    
-    col1, col2 = st.columns([8, 2])
-    with col1:
-        st.write("### 📋 Seu Fluxograma")
-    with col2:
-        st.download_button(
-            label="📥 Baixar .mmd (Miro/Draw.io)",
-            data=codigo,
-            file_name="fluxo_miro.mmd",
-            mime="text/plain",
-            use_container_width=True
-        )
+            for conn in str(et['proxima']).split(","):
+                conn = conn.strip()
+                if "|" in conn:
+                    p = conn.split("|")
+                    codigo += f"{i} -->|{p[1]}| {p[0].replace(' ', '_')}\n"
+                else:
+                    codigo += f"{i} --> {conn.replace(' ', '_')}\n"
 
-    renderizar_mermaid(codigo)
+    st.download_button("📥 Baixar .mmd", data=codigo, file_name="fluxo.mmd")
+    renderizar_mermaid(codigo, zoom, orientacao)
