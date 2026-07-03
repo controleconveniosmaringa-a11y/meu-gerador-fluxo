@@ -18,7 +18,7 @@ else:
     st.stop()
 
 # ==========================================
-# 2. MOTOR DE DESIGN (PROPORÇÃO EXATA DO MIRO)
+# 2. MOTOR DE DESIGN (ESTÉTICA MIRO)
 # ==========================================
 def renderizar_mermaid(codigo_mermaid, altura=900):
     html = f"""
@@ -62,24 +62,24 @@ def renderizar_mermaid(codigo_mermaid, altura=900):
     components.html(html, height=altura, scrolling=True)
 
 # ==========================================
-# 3. IA (GABARITO CORRIGIDO COM INÍCIO E FIM)
+# 3. IA (GABARITO DO LOOP)
 # ==========================================
 def processar_ia(texto):
     prompt = f"""
     Você é um Arquiteto BPMN Rigoroso. Extraia o fluxo para JSON.
     
     REGRAS DE OURO DA INTELIGÊNCIA:
-    1. INÍCIO E FIM: A primeira etapa TEM QUE SER "Início", a última TEM QUE SER "Fim". Todo o fluxo fica no meio.
-    2. O SEGREDO DO LOOP (ACOMPANHAR/ESPERAR): Se o texto disser para "acompanhar" ou "verificar se", você DEVE dividir isso em duas etapas:
+    1. INÍCIO E FIM: A primeira etapa TEM QUE SER "Início", a última TEM QUE SER "Fim".
+    2. O SEGREDO DO LOOP (ACOMPANHAR/ESPERAR): Se o texto disser para "acompanhar" ou "verificar se", divida em duas etapas:
        - Uma etapa tipo "Processo" (Ex: Acompanhar conta-corrente).
        - Uma etapa tipo "Decisão" logo abaixo (Ex: Recurso entrou na conta?).
-       - Na "Decisão", o SIM avança. O NÃO volta para o ID do Processo de acompanhamento (criando um loop).
+       - Na "Decisão", o SIM avança. O NÃO volta para o ID do Processo de acompanhamento.
     3. REGRAS DE JSON:
        - Decisões usam as chaves: "proxima_sim" e "proxima_nao".
        - Outros tipos usam apenas a chave: "proxima".
     4. SISTEMAS: Referências a sistemas (Oxy, SEI) geram tipo "Documento".
     
-    EXEMPLO GABARITO (Siga exatamente esta estrutura completa, do Início ao Fim):
+    EXEMPLO GABARITO:
     {{
       "fluxo": [
         {{"id": "1", "texto": "Início do fluxo", "tipo": "Início", "raia": "Geral", "proxima": "2"}},
@@ -142,7 +142,7 @@ with aba1:
     
     if st.button("✨ Gerar Fluxograma Exato", type="primary"):
         if texto.strip() != "":
-            with st.spinner("Estruturando processo do Início ao Fim..."):
+            with st.spinner("Estruturando processo (sem pontas soltas)..."):
                 resultado = processar_ia(texto)
                 if resultado is not None and len(resultado) > 0:
                     st.session_state.etapas = resultado
@@ -168,14 +168,38 @@ with aba2:
     )
 
 # ==========================================
-# 5. GERADOR MERMAID
+# 5. GERADOR MERMAID & BLINDAGEM PYTHON
 # ==========================================
 if len(st.session_state.etapas) > 0:
     st.divider()
     
-    raias = {}
     lista_de_etapas = st.session_state.etapas
     
+    # --- BLINDAGEM ANTI-BLOCOS SOLTOS (100% PYTHON) ---
+    # 1. Verifica se existe um nó de "Fim"
+    id_fim = None
+    for et in lista_de_etapas:
+        if et and et.get("tipo") == "Fim":
+            id_fim = str(et["id"])
+            break
+            
+    # 2. Se a IA esqueceu de criar o Fim, o Python cria um!
+    if not id_fim:
+        id_fim = "999"
+        lista_de_etapas.append({
+            "id": id_fim, "texto": "Fim do Processo", 
+            "tipo": "Fim", "raia": "Geral", "proxima": ""
+        })
+        
+    # 3. Varre todas as etapas e amarra as que estão soltas ao Fim
+    for et in lista_de_etapas:
+        if et and et.get("tipo") != "Fim":
+            prox = str(et.get("proxima", "")).strip()
+            if not prox: 
+                et["proxima"] = id_fim
+    # ---------------------------------------------------
+
+    raias = {}
     for et in lista_de_etapas:
         if not et or "id" not in et: continue
         r = et.get('raia', 'Geral')
@@ -233,4 +257,17 @@ if len(st.session_state.etapas) > 0:
                         destino = p.replace(' ', '_')
                         codigo += f"    {origem} --> {destino}\n"
     
+    # 6. BOTÃO DE DOWNLOAD (NOVIDADE)
+    col1, col2 = st.columns([8, 2])
+    with col1:
+        st.write("### 📋 Seu Fluxograma")
+    with col2:
+        st.download_button(
+            label="📥 Baixar Arquivo",
+            data=codigo,
+            file_name="meu_fluxo.mmd",
+            mime="text/plain",
+            help="Arquivo original que pode ser aberto em qualquer editor corporativo, como o Draw.io ou Miro."
+        )
+
     renderizar_mermaid(codigo)
