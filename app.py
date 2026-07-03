@@ -40,10 +40,9 @@ def renderizar_mermaid(codigo_mermaid, altura=800):
     components.html(html, height=altura, scrolling=True)
 
 # ==========================================
-# 3. IA COM JSON MODE FORÇADO
+# 3. IA COM MODELO CORRIGIDO (Llama 3.1)
 # ==========================================
 def processar_ia(texto):
-    # O JSON mode da Groq exige que a palavra "JSON" esteja no prompt e que retorne um objeto
     prompt = f"""
     Analise o processo e retorne um objeto JSON.
     Obrigatório ter uma chave chamada "fluxo" contendo um array de etapas.
@@ -53,16 +52,15 @@ def processar_ia(texto):
     """
     try:
         completion = client.chat.completions.create(
-            model="llama-3-8b-8192",
+            model="llama-3.1-8b-instant", # O NOME EXATO DO MODELO FOI CORRIGIDO AQUI
             messages=[{"role": "user", "content": prompt}],
             temperature=0.1,
-            # Força o bloqueio de texto humano. Retorna apenas dados.
             response_format={"type": "json_object"} 
         )
         
         res_texto = completion.choices[0].message.content
         dados = json.loads(res_texto)
-        return dados.get("fluxo", []) # Pega só o array de dentro do objeto
+        return dados.get("fluxo", []) 
         
     except Exception as e:
         st.error(f"Erro ao conectar com a IA: {str(e)}")
@@ -82,7 +80,6 @@ with aba1:
             with st.spinner("A IA está estruturando o processo..."):
                 resultado = processar_ia(texto)
                 
-                # Se não for None (erro) e tiver etapas, recarrega a tela
                 if resultado is not None and len(resultado) > 0:
                     st.session_state.etapas = resultado
                     st.rerun()
@@ -120,30 +117,4 @@ if len(st.session_state.etapas) > 0:
     codigo = "graph TD\n"
     for nome_raia, nodes in raias.items():
         nome_limpo = str(nome_raia).replace(" ", "_").replace("-", "_")
-        codigo += f"subgraph {nome_limpo}[{nome_raia}]\n"
-        
-        for et in nodes:
-            id_n = str(et['id']).replace(" ", "_")
-            txt = str(et['texto']).replace('"', "'")
-            cls = str(et.get('tipo', 'Processo'))
-            
-            if cls == "Decisão": 
-                codigo += f'    {id_n}{{"{txt}"}}\n'
-            elif cls == "Início" or cls == "Fim":
-                codigo += f'    {id_n}(["{txt}"])\n'
-            else: 
-                codigo += f'    {id_n}["{txt}"]\n'
-        codigo += "end\n"
-        
-    for et in lista_de_etapas:
-        if not et or "id" not in et:
-            continue
-        if et.get('proxima'):
-            conexoes = str(et['proxima']).split(",")
-            for p in conexoes:
-                if p.strip():
-                    origem = str(et['id']).replace(' ', '_')
-                    destino = p.strip().replace(' ', '_')
-                    codigo += f"{origem} --> {destino}\n"
-    
-    renderizar_mermaid(codigo)
+        codigo += f"subgraph {nome_
