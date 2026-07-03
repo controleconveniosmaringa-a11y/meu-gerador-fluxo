@@ -18,15 +18,17 @@ else:
     st.stop()
 
 # ==========================================
-# 2. MOTOR DE DESIGN (ESTÉTICA CORPORATIVA)
+# 2. MOTOR DE DESIGN (GRANDE E CORPORATIVO)
 # ==========================================
-def renderizar_mermaid(codigo_mermaid, altura=700):
+def renderizar_mermaid(codigo_mermaid, altura=800):
     html = f"""
     <html>
     <head>
         <style>
             body {{ margin: 0; padding: 20px; background-color: #f4f5f9; }}
-            .mermaid {{ display: flex; justify-content: center; }}
+            /* Permite rolagem em vez de esmagar o gráfico */
+            .mermaid {{ display: flex; justify-content: flex-start; overflow-x: auto; padding-bottom: 20px; }}
+            .mermaid svg {{ min-width: 1200px !important; height: auto !important; }} 
         </style>
     </head>
     <body>
@@ -38,21 +40,25 @@ def renderizar_mermaid(codigo_mermaid, altura=700):
                 theme: 'base',
                 themeVariables: {{ 
                     fontFamily: 'Arial, sans-serif', 
-                    fontSize: '13px',
-                    lineColor: '#94a3b8',
-                    lineWidth: '2px',
-                    clusterBkg: 'transparent',
+                    fontSize: '16px', /* Fonte maior e mais legível */
+                    lineColor: '#64748b',
+                    lineWidth: '3px', /* Setas mais encorpadas */
+                    clusterBkg: '#ffffff',
                     clusterBorder: '#cbd5e1'
                 }},
                 themeCSS: `
+                    /* Sombras e caixas mais espaçosas */
                     .node rect, .node circle, .node polygon, .node path {{ 
-                        filter: drop-shadow(0 2px 5px rgba(0,0,0,0.06));
+                        filter: drop-shadow(0 4px 6px rgba(0,0,0,0.1));
                     }}
-                    .edgeLabel {{ background-color: #f4f5f9 !important; padding: 2px 6px !important; font-weight: bold; color: #475569; }}
-                    .cluster rect {{ stroke-dasharray: 4; stroke-width: 1px; }}
-                    .cluster text {{ font-weight: bold; fill: #64748b; font-size: 14px; }}
+                    .node label {{ padding: 10px !important; }}
+                    /* Rótulos das setas (SIM/NÃO) maiores */
+                    .edgeLabel {{ background-color: #ffffff !important; padding: 4px 10px !important; font-weight: bold; color: #1e293b; font-size: 14px; border-radius: 4px; border: 1px solid #e2e8f0; }}
+                    .cluster rect {{ stroke-dasharray: 0; stroke-width: 2px; rx: 12px; ry: 12px; }}
+                    .cluster text {{ font-weight: bold; fill: #475569; font-size: 16px; padding: 10px; }}
                 `,
-                flowchart: {{ useMaxWidth: true, htmlLabels: true, curve: 'basis' }}
+                /* Espaçamento extra entre as caixas para o gráfico não ficar amontoado */
+                flowchart: {{ useMaxWidth: false, htmlLabels: true, curve: 'basis', nodeSpacing: 60, rankSpacing: 80 }}
             }});
         </script>
     </body>
@@ -61,22 +67,23 @@ def renderizar_mermaid(codigo_mermaid, altura=700):
     components.html(html, height=altura, scrolling=True)
 
 # ==========================================
-# 3. IA (LÓGICA CONDICIONAL E LIGAÇÃO FORÇADA)
+# 3. IA (BLINDAGEM CONTRA O ERRO SIM/SEI)
 # ==========================================
 def processar_ia(texto):
     prompt = f"""
     Você é um Arquiteto de Processos. Sua missão é estruturar o texto do usuário em um JSON perfeito.
     
     REGRAS DE OURO:
-    1. LIGAÇÃO DO INÍCIO: Todo fluxo deve ter um nó do tipo "Início". O campo "proxima" deste nó DEVE OBRIGATORIAMENTE estar preenchido com o ID da etapa seguinte. O fluxo NUNCA pode começar quebrado.
-    2. CONDIÇÕES (DECISÃO): Se o texto indicar verificação, validação ou cenário de "Se sim / Se não", você DEVE:
-       - Criar uma etapa do tipo "Decisão".
-       - No campo "proxima", mapear as DUAS SAÍDAS usando ID|Texto (Exemplo: "C|SIM, D|NÃO").
-    3. Documentos, sistemas ou relatórios (ex: SEI, Oxy) = usar tipo "Documento".
+    1. LIGAÇÃO DO INÍCIO: Todo fluxo deve ter um nó do tipo "Início". O campo "proxima" deste nó DEVE OBRIGATORIAMENTE estar preenchido com o ID da etapa seguinte.
+    2. CONDIÇÕES (DECISÃO): Se o texto indicar verificação ou cenário de "Se sim / Se não", você DEVE criar uma "Decisão".
+       - No campo "proxima", mapeie as DUAS SAÍDAS usando ID|Texto.
+       - EXTREMAMENTE IMPORTANTE: Use EXATAMENTE as palavras "SIM" e "NÃO" nas setas (Ex: "C|SIM, D|NÃO").
+       - NUNCA confunda a palavra "SIM" com a palavra "SEI" (sistema).
+    3. Documentos e sistemas (ex: SEI, Oxy) = usar tipo "Documento" apenas no campo "texto".
     
     Retorne um objeto JSON contendo APENAS a chave "fluxo".
     Estrutura exata do array: {{"id": "A", "texto": "Resumo", "tipo": "Processo", "raia": "Departamento", "proxima": "B"}}
-    Tipos de nó permitidos: "Início", "Processo", "Decisão", "Documento", "Fim"
+    Tipos permitidos: "Início", "Processo", "Decisão", "Documento", "Fim"
     
     Processo do usuário: {texto}
     """
@@ -137,7 +144,7 @@ with aba2:
                 options=["Início", "Processo", "Decisão", "Documento", "Fim"],
                 required=True
             ),
-            "proxima": st.column_config.TextColumn("Próxima (Use a barra reta | para criar texto na seta)")
+            "proxima": st.column_config.TextColumn("Próxima (Use a barra reta | para texto na seta)")
         }
     )
 
@@ -164,7 +171,7 @@ if len(st.session_state.etapas) > 0:
     codigo += "classDef Processo fill:#fef08a,stroke:#ca8a04,stroke-width:2px,color:#1e293b,rx:8px,ry:8px;\n"
     codigo += "classDef Decisão fill:#bfdbfe,stroke:#2563eb,stroke-width:2px,color:#1e293b;\n"
     codigo += "classDef Documento fill:#fef08a,stroke:#ca8a04,stroke-width:2px,color:#1e293b;\n"
-    codigo += "classDef Fim fill:#a7f3d0,stroke:#059669,stroke-width:2px,color:#1e293b;\n\n"
+    codigo += "classDef Fim fill:#fca5a5,stroke:#b91c1c,stroke-width:2px,color:#1e293b;\n\n"
     
     for nome_raia, nodes in raias.items():
         if nome_raia != 'Geral':
@@ -178,8 +185,10 @@ if len(st.session_state.etapas) > 0:
             
             if cls == "Decisão": 
                 codigo += f'    {id_n}{{"{txt}"}}:::Decisão\n'
-            elif cls == "Início" or cls == "Fim":
-                codigo += f'    {id_n}(["{txt}"]):::{cls}\n'
+            elif cls == "Início":
+                codigo += f'    {id_n}(["{txt}"]):::Início\n'
+            elif cls == "Fim":
+                codigo += f'    {id_n}(["{txt}"]):::Fim\n'
             elif cls == "Documento":
                 codigo += f'    {id_n}[/"{txt}"/]:::{cls}\n'
             else: 
