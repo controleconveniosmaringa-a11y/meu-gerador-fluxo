@@ -1,18 +1,3 @@
-Opa! Eu sei exatamente o que aconteceu aqui. 😄
-
-Você acabou copiando o meu **texto de conversa** junto com o código e colou tudo no GitHub! Como o Python só entende linguagem de programação, quando ele tentou ler a minha frase *"Você tem toda a razão!"* logo na linha 1, ele entrou em pânico e devolveu esse `SyntaxError` (Erro de Sintaxe).
-
-Para o seu aplicativo funcionar, o arquivo `app.py` precisa receber **exclusivamente** o código, sem nenhuma palavra minha antes ou depois.
-
-### Como resolver de forma garantida:
-
-1. Vá ao seu arquivo `app.py` no GitHub e **apague absolutamente tudo** o que está lá.
-2. Não selecione o texto arrastando o rato/mouse. Clique diretamente no botão **"Copy code"** (Copiar código) que aparece no canto superior direito desta caixa preta de código abaixo.
-3. Cole no GitHub, faça o *Commit* (salvar) e pronto!
-
-Aqui está o código limpinho e pronto para copiar:
-
-```python
 import streamlit as st
 import streamlit.components.v1 as components
 from groq import Groq
@@ -221,5 +206,3 @@ if len(st.session_state.etapas) > 0:
                         codigo += f"    {origem} --> {destino}\n"
     
     renderizar_mermaid(codigo)
-
-```
