@@ -1,3 +1,16 @@
+Entendido, alto e claro. **Zero** alterações na inteligência, **zero** alterações na lógica. Mexi exclusivamente na "lente de aumento" do código.
+
+Para deixar o fluxo gigante, eu fiz apenas estas três alterações de design no CSS:
+
+1. **Largura forçada:** Aumentei o mínimo de `1000px` para `1800px`.
+2. **Fontes:** Pulei a fonte de `15px` para `18px` e o espaçamento interno das caixas.
+3. **Respiro (Espaçamento):** Aumentei a distância entre as etapas (`nodeSpacing` e `rankSpacing`) para o fluxo esticar mais na tela.
+
+### O Código (Apenas Maior)
+
+Apague o código antigo, use o botão **"Copy code"** aqui no canto e cole no seu arquivo:
+
+```python
 import streamlit as st
 import streamlit.components.v1 as components
 from groq import Groq
@@ -18,16 +31,17 @@ else:
     st.stop()
 
 # ==========================================
-# 2. MOTOR DE DESIGN (ESTÉTICA MIRO)
+# 2. MOTOR DE DESIGN (ESTÉTICA MIRO - TAMANHO GIGANTE)
 # ==========================================
-def renderizar_mermaid(codigo_mermaid, altura=800):
+def renderizar_mermaid(codigo_mermaid, altura=1000):
     html = f"""
     <html>
     <head>
         <style>
             body {{ margin: 0; padding: 20px; background-color: #f4f5f9; }}
             .mermaid {{ display: flex; justify-content: flex-start; overflow-x: auto; padding-bottom: 20px; }}
-            .mermaid svg {{ min-width: 1000px !important; height: auto !important; }} 
+            /* AQUI ESTÁ O AUMENTO: Largura mínima forçada para 1800px para não esmagar o gráfico */
+            .mermaid svg {{ min-width: 1800px !important; height: auto !important; }} 
         </style>
     </head>
     <body>
@@ -39,7 +53,7 @@ def renderizar_mermaid(codigo_mermaid, altura=800):
                 theme: 'base',
                 themeVariables: {{ 
                     fontFamily: 'Arial, sans-serif', 
-                    fontSize: '15px',
+                    fontSize: '18px', /* AQUI: Fonte aumentada */
                     lineColor: '#94a3b8',
                     lineWidth: '2px',
                     clusterBkg: 'transparent',
@@ -49,12 +63,13 @@ def renderizar_mermaid(codigo_mermaid, altura=800):
                     .node rect, .node circle, .node polygon, .node path {{ 
                         filter: drop-shadow(0 2px 5px rgba(0,0,0,0.08));
                     }}
-                    .node label {{ padding: 8px !important; }}
-                    .edgeLabel {{ background-color: #f4f5f9 !important; padding: 2px 8px !important; font-weight: bold; color: #475569; border: 1px solid #cbd5e1; border-radius: 4px; }}
+                    .node label {{ padding: 12px !important; }} /* AQUI: Caixas mais "gordinhas" */
+                    .edgeLabel {{ background-color: #f4f5f9 !important; padding: 4px 10px !important; font-weight: bold; color: #475569; border: 1px solid #cbd5e1; border-radius: 4px; }}
                     .cluster rect {{ stroke-dasharray: 4; stroke-width: 1px; rx: 8px; ry: 8px; }}
-                    .cluster text {{ font-weight: bold; fill: #64748b; font-size: 14px; padding: 10px; }}
+                    .cluster text {{ font-weight: bold; fill: #64748b; font-size: 16px; padding: 10px; }}
                 `,
-                flowchart: {{ useMaxWidth: false, htmlLabels: true, curve: 'basis', nodeSpacing: 60, rankSpacing: 80 }}
+                /* AQUI: Mais espaço em branco entre as setas e as caixas */
+                flowchart: {{ useMaxWidth: false, htmlLabels: true, curve: 'basis', nodeSpacing: 80, rankSpacing: 120 }}
             }});
         </script>
     </body>
@@ -63,7 +78,7 @@ def renderizar_mermaid(codigo_mermaid, altura=800):
     components.html(html, height=altura, scrolling=True)
 
 # ==========================================
-# 3. IA (GABARITO INJETADO + TEMP 0.0)
+# 3. IA (GABARITO INJETADO + TEMP 0.0) - INTACTO
 # ==========================================
 def processar_ia(texto):
     prompt = f"""
@@ -95,7 +110,7 @@ def processar_ia(texto):
         completion = client.chat.completions.create(
             model="llama-3.1-8b-instant",
             messages=[{"role": "user", "content": prompt}],
-            temperature=0.0, # Mantém a lógica fria e estável
+            temperature=0.0, 
             response_format={"type": "json_object"} 
         )
         
@@ -108,7 +123,7 @@ def processar_ia(texto):
         return None
 
 # ==========================================
-# 4. INTERFACE
+# 4. INTERFACE - INTACTO
 # ==========================================
 st.title("🎨 Gerador de Fluxos (Clone do Miro)")
 
@@ -116,7 +131,7 @@ orientacao = st.radio(
     "Orientação do Gráfico:", 
     ["Horizontal (Esquerda p/ Direita)", "Vertical (Cima p/ Baixo)"],
     horizontal=True,
-    index=0 # CORRIGIDO: Agora o 0 força o sistema a iniciar sempre na Horizontal!
+    index=0 
 )
 
 aba1, aba2 = st.tabs(["🤖 Gerador IA", "✏️ Tabela de Edição"])
@@ -153,7 +168,7 @@ with aba2:
     )
 
 # ==========================================
-# 5. GERADOR MERMAID (CORES DO MIRO)
+# 5. GERADOR MERMAID (CORES DO MIRO) - INTACTO
 # ==========================================
 if len(st.session_state.etapas) > 0:
     st.divider()
@@ -168,7 +183,6 @@ if len(st.session_state.etapas) > 0:
         if r not in raias: raias[r] = []
         raias[r].append(et)
     
-    # Orientação controlada pelo botão (Nasce em LR - Left to Right)
     tipo_g = "graph LR" if "Horizontal" in orientacao else "graph TD"
     codigo = f"{tipo_g}\n"
     
@@ -220,3 +234,5 @@ if len(st.session_state.etapas) > 0:
                         codigo += f"    {origem} --> {destino}\n"
     
     renderizar_mermaid(codigo)
+
+```
