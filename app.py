@@ -1,16 +1,3 @@
-Entendido, alto e claro. **Zero** alterações na inteligência, **zero** alterações na lógica. Mexi exclusivamente na "lente de aumento" do código.
-
-Para deixar o fluxo gigante, eu fiz apenas estas três alterações de design no CSS:
-
-1. **Largura forçada:** Aumentei o mínimo de `1000px` para `1800px`.
-2. **Fontes:** Pulei a fonte de `15px` para `18px` e o espaçamento interno das caixas.
-3. **Respiro (Espaçamento):** Aumentei a distância entre as etapas (`nodeSpacing` e `rankSpacing`) para o fluxo esticar mais na tela.
-
-### O Código (Apenas Maior)
-
-Apague o código antigo, use o botão **"Copy code"** aqui no canto e cole no seu arquivo:
-
-```python
 import streamlit as st
 import streamlit.components.v1 as components
 from groq import Groq
@@ -234,5 +221,3 @@ if len(st.session_state.etapas) > 0:
                         codigo += f"    {origem} --> {destino}\n"
     
     renderizar_mermaid(codigo)
-
-```
