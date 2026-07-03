@@ -2,7 +2,6 @@ import streamlit as st
 import streamlit.components.v1 as components
 from groq import Groq
 import json
-import re
 
 # ==========================================
 # 1. CONFIGURAÇÃO
@@ -12,7 +11,7 @@ st.set_page_config(page_title="Fluxo BPM Pro", page_icon="🏢", layout="wide")
 if "etapas" not in st.session_state: 
     st.session_state.etapas = []
 
-# Configuração Groq (Segurança)
+# Configuração Groq
 if "GROQ_API_KEY" in st.secrets:
     client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 else:
@@ -20,7 +19,7 @@ else:
     st.stop()
 
 # ==========================================
-# 2. MOTOR DE DESIGN BPMN (CSS + SUBGRAPHS)
+# 2. MOTOR DE DESIGN BPMN
 # ==========================================
 def renderizar_mermaid(codigo_mermaid, altura=800):
     html = f"""
@@ -41,32 +40,33 @@ def renderizar_mermaid(codigo_mermaid, altura=800):
     components.html(html, height=altura, scrolling=True)
 
 # ==========================================
-# 3. IA COM DEBUG ATIVADO E NOVO MODELO
+# 3. IA COM JSON MODE FORÇADO
 # ==========================================
 def processar_ia(texto):
+    # O JSON mode da Groq exige que a palavra "JSON" esteja no prompt e que retorne um objeto
     prompt = f"""
-    Analise o processo e retorne APENAS um JSON array.
-    Estrutura: {{"id": "A", "texto": "Curto", "tipo": "Processo", "raia": "Departamento", "proxima": "B"}}
-    Tipos permitidos: "Início", "Processo", "Decisão", "Fim"
-    Processo: {texto}
+    Analise o processo e retorne um objeto JSON.
+    Obrigatório ter uma chave chamada "fluxo" contendo um array de etapas.
+    Estrutura exata de cada etapa no array: {{"id": "A", "texto": "Resumo", "tipo": "Processo", "raia": "Departamento", "proxima": "B"}}
+    Tipos de nó permitidos: "Início", "Processo", "Decisão", "Fim"
+    Processo do usuário: {texto}
     """
     try:
-        # Trocamos para o modelo padrão da Groq que funciona em todas as contas gratuitas
         completion = client.chat.completions.create(
             model="llama-3-8b-8192",
             messages=[{"role": "user", "content": prompt}],
-            temperature=0.1
+            temperature=0.1,
+            # Força o bloqueio de texto humano. Retorna apenas dados.
+            response_format={"type": "json_object"} 
         )
-        res = completion.choices[0].message.content
-        match = re.search(r'\[.*\]', res, re.DOTALL)
-        if match: 
-            return json.loads(match.group(0))
-        else: 
-            return []
+        
+        res_texto = completion.choices[0].message.content
+        dados = json.loads(res_texto)
+        return dados.get("fluxo", []) # Pega só o array de dentro do objeto
+        
     except Exception as e:
-        # Agora o erro real será exposto na interface do Streamlit
-        st.error(f"DETALHE DO ERRO DA API GROQ: {str(e)}")
-        return []
+        st.error(f"Erro ao conectar com a IA: {str(e)}")
+        return None
 
 # ==========================================
 # 4. INTERFACE
@@ -79,9 +79,15 @@ with aba1:
     texto = st.text_area("Descreva o processo (quem faz o quê):", height=100)
     if st.button("Gerar Fluxo BPM", type="primary"):
         if texto.strip() != "":
-            with st.spinner("Estruturando o processo..."):
-                st.session_state.etapas = processar_ia(texto)
-                st.rerun()
+            with st.spinner("A IA está estruturando o processo..."):
+                resultado = processar_ia(texto)
+                
+                # Se não for None (erro) e tiver etapas, recarrega a tela
+                if resultado is not None and len(resultado) > 0:
+                    st.session_state.etapas = resultado
+                    st.rerun()
+                elif resultado is not None and len(resultado) == 0:
+                    st.warning("A IA não conseguiu extrair etapas desse texto. Tente detalhar mais.")
         else:
             st.warning("Por favor, digite um texto antes de gerar.")
 
@@ -93,25 +99,26 @@ with aba2:
     )
 
 # ==========================================
-# 5. GERADOR DE CÓDIGO BPM (Swimlanes)
+# 5. GERADOR DE CÓDIGO BPM
 # ==========================================
-if st.session_state.etapas:
+if len(st.session_state.etapas) > 0:
     st.divider()
-    st.write("#### 📋 O Seu Fluxograma")
+    st.write("#### 📋 O Seu Fluxograma BPM")
     
-    # 1. Agrupar por Raia
     raias = {}
-    for et in st.session_state.etapas:
+    lista_de_etapas = st.session_state.etapas
+    
+    for et in lista_de_etapas:
         if not et or "id" not in et:
             continue
         r = et.get('raia', 'Geral')
-        if r not in raias: raias[r] = []
+        if not r: r = 'Geral'
+        if r not in raias: 
+            raias[r] = []
         raias[r].append(et)
     
-    # 2. Montar código Mermaid com subgraphs (Raias)
     codigo = "graph TD\n"
     for nome_raia, nodes in raias.items():
-        # Limpa espaços e formata o nome da raia para o Mermaid aceitar
         nome_limpo = str(nome_raia).replace(" ", "_").replace("-", "_")
         codigo += f"subgraph {nome_limpo}[{nome_raia}]\n"
         
@@ -128,14 +135,15 @@ if st.session_state.etapas:
                 codigo += f'    {id_n}["{txt}"]\n'
         codigo += "end\n"
         
-    # 3. Adicionar conexões entre as caixas
-    for et in st.session_state.etapas:
+    for et in lista_de_etapas:
         if not et or "id" not in et:
             continue
         if et.get('proxima'):
-            for p in str(et['proxima']).split(","):
+            conexoes = str(et['proxima']).split(",")
+            for p in conexoes:
                 if p.strip():
-                    codigo += f"{str(et['id']).replace(' ', '_')} --> {p.strip().replace(' ', '_')}\n"
+                    origem = str(et['id']).replace(' ', '_')
+                    destino = p.strip().replace(' ', '_')
+                    codigo += f"{origem} --> {destino}\n"
     
-    # Chama o renderizador final
     renderizar_mermaid(codigo)
