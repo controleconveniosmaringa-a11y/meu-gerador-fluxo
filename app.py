@@ -63,23 +63,32 @@ def renderizar_mermaid(codigo_mermaid, altura=800):
     components.html(html, height=altura, scrolling=True)
 
 # ==========================================
-# 3. IA (TRAVADA EM LÓGICA PURA - TEMP 0.0)
+# 3. IA (CADEIA DE RACIOCÍNIO PARA SIM E NÃO)
 # ==========================================
 def processar_ia(texto):
     prompt = f"""
-    Você é um compilador lógico. Converta o texto em um JSON exato. NUNCA mude o resultado para o mesmo texto.
+    Você é um Arquiteto de Processos especialista em BPMN. Extraia o fluxo do texto para um JSON.
     
-    REGRAS LÓGICAS ESTRITAS:
-    1. INÍCIO: A primeira etapa DEVE ser tipo "Início".
-    2. CONDIÇÕES (Decisão): Se houver uma pergunta ou "Se SIM / Se NÃO", crie uma etapa "Decisão".
-       - Mapeie as saídas no formato ID|Texto. Ex: "D|SIM, E|NÃO".
-    3. LOOPS (Voltar atrás): Se uma condição disser para "voltar" para uma etapa anterior, use o ID exato dessa etapa antiga. Ex: O "NÃO" volta para a etapa "C", então escreva "C|NÃO".
-    4. SISTEMAS (Oxy, SEI, formulários): Se mencionar preencher formulário, sistema ou anexo, o tipo DEVE ser "Documento".
+    REGRA CRÍTICA PARA CONDIÇÕES (SIM/NÃO):
+    Sempre que o texto apresentar uma validação, pergunta ou ramificação (Ex: "Recurso entrou?", "Foi aprovado?", "Verifica se há saldo"):
+    1. Crie uma etapa com o tipo "Decisão".
+    2. Leia o texto para descobrir a consequência se a resposta for SIM. Identifique o ID dessa próxima etapa.
+    3. Leia o texto para descobrir a consequência se a resposta for NÃO (pode ser encerrar o processo, ou voltar para uma etapa anterior). Identifique o ID exato dessa etapa.
+    4. Conecte AS DUAS SAÍDAS obrigatoriamente no campo "proxima".
+       Formato OBRIGATÓRIO: "ID_DO_SIM|SIM, ID_DO_NAO|NÃO" (Exemplo prático: "C|SIM, B|NÃO").
+       
+    OUTRAS REGRAS:
+    - A primeira etapa DEVE ser tipo "Início".
+    - A última etapa DEVE ser "Fim".
+    - Se o texto citar sistemas (SEI, Oxy, planilhas), use o tipo "Documento".
     
-    ESTRUTURA DO JSON (Retorne apenas um objeto com a chave "fluxo"):
-    {{"fluxo": [ {{"id": "A", "texto": "Resumo", "tipo": "Processo", "raia": "Departamento", "proxima": "B"}} ]}}
-    
-    Tipos permitidos: "Início", "Processo", "Decisão", "Documento", "Fim".
+    ESTRUTURA DO JSON ESPERADA (Retorne apenas um objeto com a chave "fluxo"):
+    {{
+      "fluxo": [
+        {{"id": "A", "texto": "Início da análise", "tipo": "Início", "raia": "Compras", "proxima": "B"}},
+        {{"id": "B", "texto": "Possui saldo?", "tipo": "Decisão", "raia": "Compras", "proxima": "C|SIM, D|NÃO"}}
+      ]
+    }}
     
     Texto para analisar: {texto}
     """
@@ -87,7 +96,7 @@ def processar_ia(texto):
         completion = client.chat.completions.create(
             model="llama-3.1-8b-instant",
             messages=[{"role": "user", "content": prompt}],
-            temperature=0.0, # A MÁGICA ESTÁ AQUI: 0.0 = SEMPRE A MESMA RESPOSTA
+            temperature=0.0, 
             response_format={"type": "json_object"} 
         )
         
@@ -108,7 +117,7 @@ orientacao = st.radio(
     "Orientação do Gráfico:", 
     ["Horizontal (Esquerda p/ Direita)", "Vertical (Cima p/ Baixo)"],
     horizontal=True,
-    index=1 # Deixei Vertical como padrão para ficar igual ao seu print do Miro
+    index=1 
 )
 
 aba1, aba2 = st.tabs(["🤖 Gerador IA", "✏️ Tabela de Edição"])
@@ -118,7 +127,7 @@ with aba1:
     
     if st.button("✨ Gerar Fluxograma Exato", type="primary"):
         if texto.strip() != "":
-            with st.spinner("Compilando lógica exata..."):
+            with st.spinner("Analisando rotas de SIM e NÃO..."):
                 resultado = processar_ia(texto)
                 if resultado is not None and len(resultado) > 0:
                     st.session_state.etapas = resultado
@@ -163,7 +172,6 @@ if len(st.session_state.etapas) > 0:
     tipo_g = "graph LR" if "Horizontal" in orientacao else "graph TD"
     codigo = f"{tipo_g}\n"
     
-    # Cores Exatas da sua Imagem
     codigo += "classDef Início fill:#a7f3d0,stroke:#059669,stroke-width:2px,color:#1e293b;\n"
     codigo += "classDef Processo fill:#fef08a,stroke:#ca8a04,stroke-width:2px,color:#1e293b,rx:8px,ry:8px;\n"
     codigo += "classDef Decisão fill:#bfdbfe,stroke:#2563eb,stroke-width:2px,color:#1e293b;\n"
@@ -180,7 +188,6 @@ if len(st.session_state.etapas) > 0:
             txt = str(et['texto']).replace('"', "'")
             cls = str(et.get('tipo', 'Processo'))
             
-            # Formas geométricas idênticas
             if cls == "Decisão": 
                 codigo += f'    {id_n}{{"{txt}"}}:::Decisão\n'
             elif cls == "Início":
@@ -188,7 +195,7 @@ if len(st.session_state.etapas) > 0:
             elif cls == "Fim":
                 codigo += f'    {id_n}(["{txt}"]):::Fim\n'
             elif cls == "Documento":
-                codigo += f'    {id_n}[/"{txt}"/]:::Documento\n' # Paralelogramo inclinado
+                codigo += f'    {id_n}[/"{txt}"/]:::Documento\n'
             else: 
                 codigo += f'    {id_n}["{txt}"]:::Processo\n'
                 
