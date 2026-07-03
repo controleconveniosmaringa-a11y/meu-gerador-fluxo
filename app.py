@@ -6,7 +6,7 @@ import json
 # ==========================================
 # 1. CONFIGURAÇÃO
 # ==========================================
-st.set_page_config(page_title="Gerador de Fluxos (Miro Clone)", page_icon="🎨", layout="wide")
+st.set_page_config(page_title="Gerador de Fluxos", page_icon="🎨", layout="wide")
 
 if "etapas" not in st.session_state: 
     st.session_state.etapas = []
@@ -18,60 +18,26 @@ else:
     st.stop()
 
 # ==========================================
-# 2. MOTOR DE DESIGN (ESTÉTICA MIRO + DOWNLOAD)
+# 2. MOTOR DE RENDERIZAÇÃO
 # ==========================================
-def renderizar_mermaid(codigo_mermaid, altura=1000):
+def renderizar_mermaid(codigo_mermaid, altura=900):
     html = f"""
     <html>
     <head>
         <style>
-            body {{ margin: 0; padding: 20px; background-color: #f4f5f9; font-family: Arial; }}
-            .controls {{ margin-bottom: 10px; }}
-            .mermaid {{ display: flex; justify-content: flex-start; overflow-x: auto; padding-bottom: 20px; }}
-            .mermaid svg {{ min-width: 1500px !important; width: 100% !important; height: auto !important; }} 
+            body {{ margin: 0; padding: 20px; background-color: #f4f5f9; }}
+            .mermaid {{ display: flex; justify-content: center; overflow-x: auto; }}
         </style>
     </head>
     <body>
-        <div class="controls">
-            <button onclick="downloadPNG()" style="padding: 10px 20px; background: #059669; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold;">📥 Download PNG</button>
-        </div>
-        <div class="mermaid" id="graph-container">{codigo_mermaid}</div>
-        
+        <div class="mermaid">{codigo_mermaid}</div>
         <script type="module">
             import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
             mermaid.initialize({{ 
                 startOnLoad: true, theme: 'base',
-                themeVariables: {{ fontFamily: 'Arial', fontSize: '20px', lineColor: '#94a3b8', lineWidth: '3px', clusterBkg: 'transparent', clusterBorder: '#cbd5e1' }},
-                themeCSS: `
-                    .node rect, .node circle, .node polygon, .node path {{ filter: drop-shadow(0 4px 8px rgba(0,0,0,0.1)); }}
-                    .edgeLabel {{ background-color: #f4f5f9 !important; padding: 6px 12px !important; font-weight: bold; color: #475569; border: 1px solid #cbd5e1; border-radius: 6px; }}
-                `,
-                flowchart: {{ useMaxWidth: false, htmlLabels: true, curve: 'basis', nodeSpacing: 100, rankSpacing: 150 }}
+                themeVariables: {{ fontFamily: 'Arial', fontSize: '18px', lineColor: '#94a3b8', lineWidth: '3px' }},
+                flowchart: {{ useMaxWidth: false, curve: 'basis', nodeSpacing: 100, rankSpacing: 150 }}
             }});
-        </script>
-        
-        <script>
-            function downloadPNG() {{
-                const svg = document.querySelector('svg');
-                const serializer = new XMLSerializer();
-                const source = serializer.serializeToString(svg);
-                const canvas = document.createElement('canvas');
-                const context = canvas.getContext('2d');
-                const img = new Image();
-                
-                img.onload = function() {{
-                    canvas.width = svg.width.baseVal.value;
-                    canvas.height = svg.height.baseVal.value;
-                    context.fillStyle = '#f4f5f9';
-                    context.fillRect(0, 0, canvas.width, canvas.height);
-                    context.drawImage(img, 0, 0);
-                    const a = document.createElement('a');
-                    a.download = 'fluxo_processo.png';
-                    a.href = canvas.toDataURL('image/png');
-                    a.click();
-                }};
-                img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(source)));
-            }}
         </script>
     </body>
     </html>
@@ -79,18 +45,19 @@ def renderizar_mermaid(codigo_mermaid, altura=1000):
     components.html(html, height=altura, scrolling=True)
 
 # ==========================================
-# 3. IA (GABARITO COM LOOP E BLOQUEIO DE SOLTOS)
+# 3. LÓGICA DA IA
 # ==========================================
 def processar_ia(texto):
     prompt = f"""
-    Você é um Arquiteto BPMN. Extraia o fluxo para JSON.
-    REGRAS: 
-    1. Início e Fim obrigatórios. 
-    2. Decisões com "SIM/NÃO" devem ter os campos "proxima_sim" e "proxima_nao" (usando IDs). 
-    3. Se o texto falar "acompanhar conta" ou "verificar recurso", crie um loop voltando para a etapa anterior no "NÃO".
+    Você é um Arquiteto de Processos. Extraia o fluxo para JSON.
+    Regras:
+    1. Início e Fim são obrigatórios.
+    2. Decisões têm as chaves "proxima_sim" e "proxima_nao" com IDs.
+    3. Sistemas (SEI/Oxy) = Documento.
+    4. Se o texto pedir para "acompanhar/verificar", crie um loop voltando para a etapa anterior no NÃO.
     
-    ESTRUTURA JSON:
-    {{"fluxo": [ {{"id": "1", "texto": "Início", "tipo": "Início", "raia": "Geral", "proxima": "2"}}, ... ]}}
+    Retorne JSON com chave "fluxo":
+    {{"fluxo": [{{"id": "1", "texto": "Início", "tipo": "Início", "raia": "Geral", "proxima": "2"}}, ...]}}
     
     Texto: {texto}
     """
@@ -98,13 +65,13 @@ def processar_ia(texto):
         completion = client.chat.completions.create(
             model="llama-3.1-8b-instant",
             messages=[{"role": "user", "content": prompt}],
-            temperature=0.0, 
+            temperature=0.0,
             response_format={"type": "json_object"} 
         )
         dados = json.loads(completion.choices[0].message.content)
-        fluxo = dados.get("fluxo", []) 
+        fluxo = dados.get("fluxo", [])
         
-        # Correção Python: Converter proxima_sim/nao para o formato |SIM, |NÃO
+        # Formata o SIM/NÃO para o gráfico
         for etapa in fluxo:
             if etapa.get("tipo") == "Decisão":
                 sim = etapa.pop("proxima_sim", None)
@@ -113,23 +80,61 @@ def processar_ia(texto):
                 elif sim: etapa["proxima"] = f"{sim}|SIM"
                 elif nao: etapa["proxima"] = f"{nao}|NÃO"
         return fluxo
-    except: return None
+    except: return []
 
 # ==========================================
-# 4. INTERFACE E LÓGICA DE BLINDAGEM (PYTHON)
+# 4. INTERFACE PRINCIPAL
 # ==========================================
-st.title("🎨 Gerador de Fluxos")
-orientacao = st.radio("Orientação:", ["Horizontal", "Vertical"], horizontal=True, index=1)
-st.session_state.etapas = st.data_editor(st.session_state.etapas, num_rows="dynamic", use_container_width=True)
+st.title("📊 Gerador de Fluxos de Processo")
 
-if st.button("✨ Gerar/Atualizar Fluxo"):
-    if st.session_state.etapas:
-        # BLINDAGEM: Se tem caixa solta, liga no Fim automaticamente
-        id_fim = next((str(e["id"]) for e in st.session_state.etapas if e["tipo"] == "Fim"), "999")
-        for et in st.session_state.etapas:
-            if et["tipo"] != "Fim" and not str(et.get("proxima", "")).strip():
-                et["proxima"] = id_fim
-        st.rerun()
+tab1, tab2 = st.tabs(["🤖 Gerador de IA", "✏️ Tabela de Edição"])
 
-# [A LÓGICA DE MERMAID SEGUE O MESMO PADRÃO ANTERIOR, BASTA COPIAR TUDO]
-# (Note: Mantive a estrutura anterior para renderização. Pode usar o mesmo bloco de renderização do código anterior aqui)
+with tab1:
+    texto = st.text_area("Descreva o seu processo aqui:", height=200, placeholder="Ex: O setor de compras inicia...")
+    if st.button("✨ Gerar Fluxograma"):
+        with st.spinner("Processando..."):
+            st.session_state.etapas = processar_ia(texto)
+            st.rerun()
+
+with tab2:
+    st.session_state.etapas = st.data_editor(st.session_state.etapas, num_rows="dynamic", use_container_width=True)
+
+# ==========================================
+# 5. CONSTRUTOR DE CÓDIGO
+# ==========================================
+if len(st.session_state.etapas) > 0:
+    st.divider()
+    
+    # Blindagem Anti-Blocos Soltos
+    id_fim = next((str(e["id"]) for e in st.session_state.etapas if e["tipo"] == "Fim"), "999")
+    for et in st.session_state.etapas:
+        if et["tipo"] != "Fim" and not str(et.get("proxima", "")).strip():
+            et["proxima"] = id_fim
+
+    codigo = "graph TD\n"
+    # Cores
+    codigo += "classDef Início fill:#a7f3d0,stroke:#059669,stroke-width:2px,color:#1e293b;\n"
+    codigo += "classDef Processo fill:#fef08a,stroke:#ca8a04,stroke-width:2px,color:#1e293b,rx:8px,ry:8px;\n"
+    codigo += "classDef Decisão fill:#bfdbfe,stroke:#2563eb,stroke-width:2px,color:#1e293b;\n"
+    codigo += "classDef Documento fill:#fef08a,stroke:#ca8a04,stroke-width:2px,color:#1e293b;\n"
+    codigo += "classDef Fim fill:#a7f3d0,stroke:#059669,stroke-width:2px,color:#1e293b;\n\n"
+    
+    for et in st.session_state.etapas:
+        i, t, ty, p = str(et['id']), str(et['texto']), et.get('tipo', 'Processo'), str(et.get('proxima', ''))
+        
+        if ty == "Decisão": codigo += f'{i}{{"{t}"}}:::Decisão\n'
+        elif ty == "Início": codigo += f'{i}(["{t}"]):::Início\n'
+        elif ty == "Fim": codigo += f'{i}(["{t}"]):::Fim\n'
+        elif ty == "Documento": codigo += f'{i}[/"{t}"/]:::Documento\n'
+        else: codigo += f'{i}["{t}"]:::Processo\n'
+        
+        if p:
+            for conn in p.split(","):
+                conn = conn.strip()
+                if "|" in conn:
+                    partes = conn.split("|")
+                    codigo += f"{i} -->|{partes[1]}| {partes[0].replace(' ', '_')}\n"
+                else:
+                    codigo += f"{i} --> {conn.replace(' ', '_')}\n"
+                    
+    renderizar_mermaid(codigo)
