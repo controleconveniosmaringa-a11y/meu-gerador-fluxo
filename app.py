@@ -52,7 +52,7 @@ def processar_ia(texto):
     """
     try:
         completion = client.chat.completions.create(
-            model="llama-3.1-8b-instant", # O NOME EXATO DO MODELO FOI CORRIGIDO AQUI
+            model="llama-3.1-8b-instant",
             messages=[{"role": "user", "content": prompt}],
             temperature=0.1,
             response_format={"type": "json_object"} 
@@ -109,12 +109,41 @@ if len(st.session_state.etapas) > 0:
         if not et or "id" not in et:
             continue
         r = et.get('raia', 'Geral')
-        if not r: r = 'Geral'
+        if not r: 
+            r = 'Geral'
         if r not in raias: 
             raias[r] = []
         raias[r].append(et)
     
     codigo = "graph TD\n"
+    
     for nome_raia, nodes in raias.items():
         nome_limpo = str(nome_raia).replace(" ", "_").replace("-", "_")
-        codigo += f"subgraph {nome_
+        codigo += f"subgraph {nome_limpo}[{nome_raia}]\n"
+        
+        for et in nodes:
+            id_n = str(et['id']).replace(" ", "_")
+            txt = str(et['texto']).replace('"', "'")
+            cls = str(et.get('tipo', 'Processo'))
+            
+            if cls == "Decisão": 
+                codigo += f'    {id_n}{{"{txt}"}}\n'
+            elif cls == "Início" or cls == "Fim":
+                codigo += f'    {id_n}(["{txt}"])\n'
+            else: 
+                codigo += f'    {id_n}["{txt}"]\n'
+                
+        codigo += "end\n"
+        
+    for et in lista_de_etapas:
+        if not et or "id" not in et:
+            continue
+        if et.get('proxima'):
+            conexoes = str(et['proxima']).split(",")
+            for p in conexoes:
+                if p.strip():
+                    origem = str(et['id']).replace(' ', '_')
+                    destino = p.strip().replace(' ', '_')
+                    codigo += f"{origem} --> {destino}\n"
+    
+    renderizar_mermaid(
