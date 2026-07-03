@@ -18,16 +18,15 @@ else:
     st.stop()
 
 # ==========================================
-# 2. MOTOR DE DESIGN (ESTÉTICA MIRO - GIGANTE)
+# 2. MOTOR DE DESIGN (PROPORÇÃO EXATA DO MIRO)
 # ==========================================
-def renderizar_mermaid(codigo_mermaid, altura=1200):
+def renderizar_mermaid(codigo_mermaid, altura=900):
     html = f"""
     <html>
     <head>
         <style>
             body {{ margin: 0; padding: 20px; background-color: #f4f5f9; }}
-            .mermaid {{ display: flex; justify-content: flex-start; overflow-x: auto; padding-bottom: 40px; }}
-            .mermaid svg {{ min-width: 1500px !important; width: 100% !important; height: auto !important; }} 
+            .mermaid {{ display: flex; justify-content: center; overflow-x: auto; padding-bottom: 20px; }}
         </style>
     </head>
     <body>
@@ -39,22 +38,22 @@ def renderizar_mermaid(codigo_mermaid, altura=1200):
                 theme: 'base',
                 themeVariables: {{ 
                     fontFamily: 'Arial, sans-serif', 
-                    fontSize: '20px', 
+                    fontSize: '14px', 
                     lineColor: '#94a3b8',
-                    lineWidth: '3px', 
+                    lineWidth: '2px', 
                     clusterBkg: 'transparent',
                     clusterBorder: '#cbd5e1'
                 }},
                 themeCSS: `
                     .node rect, .node circle, .node polygon, .node path {{ 
-                        filter: drop-shadow(0 4px 8px rgba(0,0,0,0.1));
+                        filter: drop-shadow(0 2px 5px rgba(0,0,0,0.06));
                     }}
-                    .node label {{ padding: 16px !important; }} 
-                    .edgeLabel {{ background-color: #f4f5f9 !important; padding: 6px 12px !important; font-weight: bold; color: #475569; border: 1px solid #cbd5e1; border-radius: 6px; }}
-                    .cluster rect {{ stroke-dasharray: 4; stroke-width: 2px; rx: 8px; ry: 8px; }}
-                    .cluster text {{ font-weight: bold; fill: #64748b; font-size: 18px; padding: 15px; }}
+                    .node label {{ padding: 10px !important; }} 
+                    .edgeLabel {{ background-color: #f4f5f9 !important; padding: 2px 8px !important; font-weight: normal; color: #475569; }}
+                    .cluster rect {{ stroke-dasharray: 4; stroke-width: 1px; rx: 8px; ry: 8px; }}
+                    .cluster text {{ font-weight: bold; fill: #64748b; font-size: 14px; padding: 10px; }}
                 `,
-                flowchart: {{ useMaxWidth: false, htmlLabels: true, curve: 'basis', nodeSpacing: 100, rankSpacing: 150 }}
+                flowchart: {{ useMaxWidth: true, htmlLabels: true, curve: 'basis', nodeSpacing: 50, rankSpacing: 70 }}
             }});
         </script>
     </body>
@@ -63,15 +62,15 @@ def renderizar_mermaid(codigo_mermaid, altura=1200):
     components.html(html, height=altura, scrolling=True)
 
 # ==========================================
-# 3. IA (LÓGICA DE LOOPS E CONDIÇÕES IMPLÍCITAS)
+# 3. IA (GABARITO CORRIGIDO COM INÍCIO E FIM)
 # ==========================================
 def processar_ia(texto):
     prompt = f"""
     Você é um Arquiteto BPMN Rigoroso. Extraia o fluxo para JSON.
     
     REGRAS DE OURO DA INTELIGÊNCIA:
-    1. INÍCIO E FIM: A primeira etapa é "Início", a última é "Fim".
-    2. O SEGREDO DO LOOP (ACOMPANHAR/ESPERAR): Se o texto disser para "acompanhar o momento que X acontecer" ou "verificar se X", você DEVE dividir isso em duas etapas:
+    1. INÍCIO E FIM: A primeira etapa TEM QUE SER "Início", a última TEM QUE SER "Fim". Todo o fluxo fica no meio.
+    2. O SEGREDO DO LOOP (ACOMPANHAR/ESPERAR): Se o texto disser para "acompanhar" ou "verificar se", você DEVE dividir isso em duas etapas:
        - Uma etapa tipo "Processo" (Ex: Acompanhar conta-corrente).
        - Uma etapa tipo "Decisão" logo abaixo (Ex: Recurso entrou na conta?).
        - Na "Decisão", o SIM avança. O NÃO volta para o ID do Processo de acompanhamento (criando um loop).
@@ -80,15 +79,15 @@ def processar_ia(texto):
        - Outros tipos usam apenas a chave: "proxima".
     4. SISTEMAS: Referências a sistemas (Oxy, SEI) geram tipo "Documento".
     
-    EXEMPLO GABARITO (Siga exatamente esta lógica para Loops):
-    Texto: "...encaminhar para tesouraria. acompanhar conta-corrente do convênio o momento que recurso entrou. no sistema Oxy realizar lançamento..."
-    JSON Correto:
+    EXEMPLO GABARITO (Siga exatamente esta estrutura completa, do Início ao Fim):
     {{
       "fluxo": [
-        {{"id": "3", "texto": "Encaminhar para a tesouraria", "tipo": "Processo", "raia": "Geral", "proxima": "4"}},
-        {{"id": "4", "texto": "Acompanhar conta-corrente do convênio", "tipo": "Processo", "raia": "Geral", "proxima": "5"}},
-        {{"id": "5", "texto": "Recurso entrou na conta?", "tipo": "Decisão", "raia": "Geral", "proxima_sim": "6", "proxima_nao": "4"}},
-        {{"id": "6", "texto": "Realizar lançamento de transferência bancária no sistema Oxy", "tipo": "Documento", "raia": "Geral", "proxima": "7"}}
+        {{"id": "1", "texto": "Início do fluxo", "tipo": "Início", "raia": "Geral", "proxima": "2"}},
+        {{"id": "2", "texto": "Encaminhar para a tesouraria", "tipo": "Processo", "raia": "Geral", "proxima": "3"}},
+        {{"id": "3", "texto": "Acompanhar conta-corrente do convênio", "tipo": "Processo", "raia": "Geral", "proxima": "4"}},
+        {{"id": "4", "texto": "Recurso entrou na conta?", "tipo": "Decisão", "raia": "Geral", "proxima_sim": "5", "proxima_nao": "3"}},
+        {{"id": "5", "texto": "Realizar lançamento de transferência bancária no sistema Oxy", "tipo": "Documento", "raia": "Geral", "proxima": "6"}},
+        {{"id": "6", "texto": "Fim da execução", "tipo": "Fim", "raia": "Geral", "proxima": ""}}
       ]
     }}
     
@@ -106,7 +105,6 @@ def processar_ia(texto):
         dados = json.loads(res_texto)
         fluxo = dados.get("fluxo", []) 
         
-        # O Python obriga a estrutura SIM/NÃO sem depender da IA
         for etapa in fluxo:
             if etapa.get("tipo") == "Decisão":
                 sim = etapa.pop("proxima_sim", None)
@@ -134,7 +132,7 @@ orientacao = st.radio(
     "Orientação do Gráfico:", 
     ["Horizontal (Esquerda p/ Direita)", "Vertical (Cima p/ Baixo)"],
     horizontal=True,
-    index=1 # Vertical por padrão, como no seu Miro
+    index=1 
 )
 
 aba1, aba2 = st.tabs(["🤖 Gerador IA", "✏️ Tabela de Edição"])
@@ -144,7 +142,7 @@ with aba1:
     
     if st.button("✨ Gerar Fluxograma Exato", type="primary"):
         if texto.strip() != "":
-            with st.spinner("Estruturando o loop lógico (SIM/NÃO)..."):
+            with st.spinner("Estruturando processo do Início ao Fim..."):
                 resultado = processar_ia(texto)
                 if resultado is not None and len(resultado) > 0:
                     st.session_state.etapas = resultado
@@ -155,7 +153,6 @@ with aba1:
             st.warning("Por favor, digite um texto.")
 
 with aba2:
-    st.info("💡 **Dica:** O sistema agora preenche o SIM e o NÃO automaticamente na tabela abaixo.")
     st.session_state.etapas = st.data_editor(
         st.session_state.etapas, 
         use_container_width=True, 
@@ -171,7 +168,7 @@ with aba2:
     )
 
 # ==========================================
-# 5. GERADOR MERMAID (CORES DO MIRO)
+# 5. GERADOR MERMAID
 # ==========================================
 if len(st.session_state.etapas) > 0:
     st.divider()
