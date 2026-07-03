@@ -26,7 +26,6 @@ def renderizar_mermaid(codigo_mermaid, altura=1200):
     <head>
         <style>
             body {{ margin: 0; padding: 20px; background-color: #f4f5f9; }}
-            /* Container configurado para permitir rolagem e não esmagar o gráfico */
             .mermaid {{ display: flex; justify-content: flex-start; overflow-x: auto; padding-bottom: 40px; }}
             .mermaid svg {{ min-width: 1500px !important; width: 100% !important; height: auto !important; }} 
         </style>
@@ -40,9 +39,9 @@ def renderizar_mermaid(codigo_mermaid, altura=1200):
                 theme: 'base',
                 themeVariables: {{ 
                     fontFamily: 'Arial, sans-serif', 
-                    fontSize: '20px', /* FONTE ENORME */
+                    fontSize: '20px', 
                     lineColor: '#94a3b8',
-                    lineWidth: '3px', /* SETAS MAIS GROSSAS */
+                    lineWidth: '3px', 
                     clusterBkg: 'transparent',
                     clusterBorder: '#cbd5e1'
                 }},
@@ -50,12 +49,11 @@ def renderizar_mermaid(codigo_mermaid, altura=1200):
                     .node rect, .node circle, .node polygon, .node path {{ 
                         filter: drop-shadow(0 4px 8px rgba(0,0,0,0.1));
                     }}
-                    .node label {{ padding: 16px !important; }} /* CAIXAS MUITO MAIORES */
+                    .node label {{ padding: 16px !important; }} 
                     .edgeLabel {{ background-color: #f4f5f9 !important; padding: 6px 12px !important; font-weight: bold; color: #475569; border: 1px solid #cbd5e1; border-radius: 6px; }}
                     .cluster rect {{ stroke-dasharray: 4; stroke-width: 2px; rx: 8px; ry: 8px; }}
                     .cluster text {{ font-weight: bold; fill: #64748b; font-size: 18px; padding: 15px; }}
                 `,
-                /* ESPAÇAMENTO GIGANTE ENTRE CAIXAS E SETAS */
                 flowchart: {{ useMaxWidth: false, htmlLabels: true, curve: 'basis', nodeSpacing: 100, rankSpacing: 150 }}
             }});
         </script>
@@ -65,26 +63,25 @@ def renderizar_mermaid(codigo_mermaid, altura=1200):
     components.html(html, height=altura, scrolling=True)
 
 # ==========================================
-# 3. IA (GABARITO BLINDADO ANTI-BLOCOS SOLTOS)
+# 3. IA (GABARITO BLINDADO + ENGENHARIA PYTHON)
 # ==========================================
 def processar_ia(texto):
     prompt = f"""
-    Você é um Auditor Rigoroso de Processos BPMN. Sua missão é extrair um fluxo perfeito e SEM PONTAS SOLTAS.
+    Você é um Auditor Rigoroso de Processos BPMN. Extraia o fluxo para JSON.
     
-    REGRAS ABSOLUTAS (SOB PENA DE FALHA GRAVE):
-    1. INÍCIO E FIM OBRIGATÓRIOS: A primeira etapa TEM QUE SER do tipo "Início". A última etapa TEM QUE SER do tipo "Fim".
-    2. PROIBIDO BLOCOS SOLTOS: Toda etapa (exceto o "Fim") DEVE ter o campo "proxima" preenchido com o ID da etapa seguinte. NUNCA deixe o campo "proxima" vazio. Se uma etapa encerra o processo, a "proxima" dela deve apontar para o ID da etapa de "Fim".
-    3. CONDIÇÕES (SIM/NÃO): Se houver uma validação ou dúvida, crie uma "Decisão". O campo "proxima" DEVE ter as duas saídas: "ID_SIM|SIM, ID_NAO|NÃO".
-    
-    EXEMPLO GABARITO PERFEITO (Siga esta estrutura para não deixar blocos soltos):
-    Texto: "Verifica se há saldo. Se SIM, paga. Se NÃO, cancela."
-    JSON Correto:
+    REGRAS ABSOLUTAS:
+    1. INÍCIO E FIM: A primeira etapa DEVE ser "Início". A última DEVE ser "Fim".
+    2. PROIBIDO BLOCOS SOLTOS: Toda etapa tem que apontar para a próxima. Se a etapa encerra o processo, aponte para o ID do "Fim".
+    3. CONDIÇÕES (A MÁGICA): Se a etapa for uma pergunta/validação, o "tipo" será "Decisão". 
+       Você DEVE criar DUAS chaves novas ESPECÍFICAS para a Decisão: "proxima_sim" (com o ID do caminho SIM) e "proxima_nao" (com o ID do caminho NÃO).
+       
+    EXEMPLO GABARITO PERFEITO (Copie esta estrutura lógica):
     {{
       "fluxo": [
-        {{"id": "1", "texto": "Início da verificação", "tipo": "Início", "raia": "Geral", "proxima": "2"}},
-        {{"id": "2", "texto": "Há saldo?", "tipo": "Decisão", "raia": "Geral", "proxima": "3|SIM, 4|NÃO"}},
-        {{"id": "3", "texto": "Paga o pedido", "tipo": "Processo", "raia": "Geral", "proxima": "5"}},
-        {{"id": "4", "texto": "Cancela pedido", "tipo": "Processo", "raia": "Geral", "proxima": "5"}},
+        {{"id": "1", "texto": "Início da análise", "tipo": "Início", "raia": "Geral", "proxima": "2"}},
+        {{"id": "2", "texto": "Recurso entrou?", "tipo": "Decisão", "raia": "Geral", "proxima_sim": "3", "proxima_nao": "4"}},
+        {{"id": "3", "texto": "Faz repasse", "tipo": "Processo", "raia": "Geral", "proxima": "5"}},
+        {{"id": "4", "texto": "Volta a aguardar", "tipo": "Processo", "raia": "Geral", "proxima": "5"}},
         {{"id": "5", "texto": "Fim do processo", "tipo": "Fim", "raia": "Geral", "proxima": ""}}
       ]
     }}
@@ -95,13 +92,30 @@ def processar_ia(texto):
         completion = client.chat.completions.create(
             model="llama-3.1-8b-instant",
             messages=[{"role": "user", "content": prompt}],
-            temperature=0.0, # Mantém a lógica fria e estável
+            temperature=0.0, 
             response_format={"type": "json_object"} 
         )
         
         res_texto = completion.choices[0].message.content
         dados = json.loads(res_texto)
-        return dados.get("fluxo", []) 
+        fluxo = dados.get("fluxo", []) 
+        
+        # --- AQUI ESTÁ A CORREÇÃO FEITA EM PYTHON (INFALÍVEL) ---
+        for etapa in fluxo:
+            # Se a IA criou uma decisão, o Python obriga a formatação do SIM e NÃO
+            if etapa.get("tipo") == "Decisão":
+                sim = etapa.pop("proxima_sim", None)
+                nao = etapa.pop("proxima_nao", None)
+                
+                # Monta a estrutura perfeita exigida pelo nosso painel
+                if sim and nao:
+                    etapa["proxima"] = f"{sim}|SIM, {nao}|NÃO"
+                elif sim:
+                    etapa["proxima"] = f"{sim}|SIM"
+                elif nao:
+                    etapa["proxima"] = f"{nao}|NÃO"
+                    
+        return fluxo
         
     except Exception as e:
         st.error(f"Erro ao conectar com a IA: {str(e)}")
@@ -137,7 +151,7 @@ with aba1:
             st.warning("Por favor, digite um texto.")
 
 with aba2:
-    st.info("💡 **Dica:** Para dividir caminhos manualmente, use `ID|SIM, ID|NÃO` na coluna Próxima.")
+    st.info("💡 **Dica:** O sistema agora preenche o SIM e o NÃO automaticamente na tabela abaixo.")
     st.session_state.etapas = st.data_editor(
         st.session_state.etapas, 
         use_container_width=True, 
