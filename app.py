@@ -2,29 +2,26 @@ import streamlit as st
 import streamlit.components.v1 as components
 from groq import Groq
 import json
+import re
 
-# Configuração da página
-st.set_page_config(page_title="Miro Clone", layout="wide")
+st.set_page_config(page_title="Gerador de Fluxos", layout="wide")
 
-# Inicialização
 if "etapas" not in st.session_state: st.session_state.etapas = []
 
 # Autenticação
-if "GROQ_API_KEY" in st.secrets:
-    client = Groq(api_key=st.secrets["GROQ_API_KEY"])
-else:
-    st.error("Configure sua GROQ_API_KEY nos Secrets.")
+if "GROQ_API_KEY" not in st.secrets:
+    st.error("Configure a GROQ_API_KEY nos Secrets.")
     st.stop()
+client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 
-# Função IA com tratamento de erros
+# Função de IA Sanitizada
 def processar_ia(texto):
     try:
-        prompt = f"""Extraia o fluxo de processo deste texto para JSON.
-        Regras: 
-        1. Início e Fim obrigatórios. 
-        2. Decisões têm "proxima_sim" e "proxima_nao". 
-        3. Sistemas (SEI/Oxy) = Documento.
-        4. O 'Fim' deve ter a proxima: "".
+        prompt = f"""Extraia o fluxo de processo para JSON.
+        Regras:
+        1.IDs devem ser números ou letras simples.
+        2. Decisões usam "proxima_sim" e "proxima_nao" com IDs.
+        3. Se "acompanhar/verificar", faça o NÃO voltar para o ID da etapa anterior.
         Formato JSON: {{"fluxo": [{{"id": "1", "texto": "Início", "tipo": "Início", "proxima": "2"}}, ...]}}
         Texto: {texto}"""
         
@@ -35,68 +32,56 @@ def processar_ia(texto):
             response_format={"type": "json_object"}
         )
         data = json.loads(response.choices[0].message.content)
-        fluxo = data.get("fluxo", [])
-        
-        # Limpeza de None e formatação de setas
-        for et in fluxo:
-            for k, v in et.items():
-                if v is None: et[k] = ""
-            if et.get("tipo") == "Decisão":
-                s = et.pop("proxima_sim", "")
-                n = et.pop("proxima_nao", "")
-                if s and n: et["proxima"] = f"{s}|SIM, {n}|NÃO"
-                elif s: et["proxima"] = f"{s}|SIM"
-                elif n: et["proxima"] = f"{n}|NÃO"
-        return fluxo
+        return data.get("fluxo", [])
     except: return []
 
-# --- INTERFACE ---
-st.title("🎨 Gerador de Fluxos")
+# Limpeza de strings para Mermaid
+def safe_id(val): return re.sub(r'[^a-zA-Z0-9]', '_', str(val))
+def safe_txt(val): return str(val).replace('"', "'").replace("\n", " ")
 
-# Input sempre visível
-texto_processo = st.text_area("Descreva o seu processo aqui:", height=150)
+st.title("🎨 Gerador de Fluxos Profissional")
+texto = st.text_area("Descreva o processo:", height=150)
 
 if st.button("✨ Gerar Fluxo"):
-    if texto_processo.strip():
-        st.session_state.etapas = processar_ia(texto_processo)
+    if texto:
+        st.session_state.etapas = processar_ia(texto)
         st.rerun()
 
-# Edição
 st.session_state.etapas = st.data_editor(st.session_state.etapas, num_rows="dynamic", use_container_width=True)
 
-# Renderização
 if st.session_state.etapas:
     st.divider()
-    # Blindagem de Blocos Soltos
-    id_fim = next((str(e["id"]) for e in st.session_state.etapas if e["tipo"] == "Fim"), "999")
-    for et in st.session_state.etapas:
-        if et["tipo"] != "Fim" and not str(et.get("proxima", "")).strip():
-            et["proxima"] = id_fim
-
-    # Código Mermaid
+    
+    # Gerador Mermaid Blindado
     codigo = "graph TD\n"
-    codigo += "classDef Início fill:#a7f3d0,stroke:#059669; classDef Processo fill:#fef08a,stroke:#ca8a04; classDef Decisão fill:#bfdbfe,stroke:#2563eb; classDef Documento fill:#fef08a,stroke:#ca8a04; classDef Fim fill:#a7f3d0,stroke:#059669;\n"
+    # Estilos simples para evitar erro
+    codigo += "classDef default fill:#f9f9f9,stroke:#333;\n"
     
     for et in st.session_state.etapas:
-        i, t, ty = str(et['id']), str(et['texto']), et.get('tipo', 'Processo')
-        if ty == "Decisão": codigo += f'{i}{{"{t}"}}:::{ty}\n'
-        else: codigo += f'{i}["{t}"]:::{ty}\n'
+        i = safe_id(et['id'])
+        t = safe_txt(et['texto'])
+        ty = et.get('tipo', 'Processo')
         
-        if et.get('proxima'):
-            for conn in str(et['proxima']).split(","):
+        if ty == "Decisão": codigo += f'{i}{{"{t}"}}\n'
+        else: codigo += f'{i}["{t}"]\n'
+        
+        prox = str(et.get('proxima', ''))
+        if prox:
+            for conn in prox.split(","):
                 conn = conn.strip()
                 if "|" in conn:
                     p = conn.split("|")
-                    codigo += f"{i} -->|{p[1]}| {p[0].replace(' ', '_')}\n"
+                    codigo += f"{i} -->|{p[1]}| {safe_id(p[0])}\n"
                 else:
-                    codigo += f"{i} --> {conn.replace(' ', '_')}\n"
+                    codigo += f"{i} --> {safe_id(conn)}\n"
 
-    # Download e Exibição
-    st.download_button("📥 Baixar Fluxo (.mmd)", data=codigo, file_name="fluxo.mmd")
+    # Download e Render
+    st.download_button("📥 Baixar .mmd", data=codigo, file_name="fluxo.mmd")
+    
     components.html(f"""
         <div class="mermaid">{codigo}</div>
         <script type="module">
             import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
-            mermaid.initialize({{ startOnLoad: true }});
+            mermaid.initialize({{startOnLoad:true}});
         </script>
     """, height=600)
