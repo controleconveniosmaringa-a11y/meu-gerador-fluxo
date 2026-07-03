@@ -129,4 +129,13 @@ if st.session_state.etapas:
         codigo += "end\n"
         
     # 3. Adicionar conexões entre as caixas
-    for et in st.
+    for et in st.session_state.etapas:
+        if not et or "id" not in et:
+            continue
+        if et.get('proxima'):
+            for p in str(et['proxima']).split(","):
+                if p.strip():
+                    codigo += f"{str(et['id']).replace(' ', '_')} --> {p.strip().replace(' ', '_')}\n"
+    
+    # Chama o renderizador final
+    renderizar_mermaid(codigo)
