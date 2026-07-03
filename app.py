@@ -63,29 +63,20 @@ def renderizar_mermaid(codigo_mermaid, altura=1200):
     components.html(html, height=altura, scrolling=True)
 
 # ==========================================
-# 3. IA (GABARITO BLINDADO ANTI-BLOCOS SOLTOS)
+# 3. IA (BLINDADA CONTRA BUGS E ERROS LÓGICOS)
 # ==========================================
 def processar_ia(texto):
+    # O prompt agora exige explicitamente o formato JSON para evitar o erro 400
     prompt = f"""
-    Você é um Auditor Rigoroso de Processos BPMN. Sua missão é extrair um fluxo perfeito e SEM PONTAS SOLTAS.
+    Você é um Arquiteto BPMN. Responda estritamente no formato JSON.
+    Extraia o fluxo de processo para um JSON.
     
-    REGRAS ABSOLUTAS (SOB PENA DE FALHA GRAVE):
-    1. INÍCIO E FIM OBRIGATÓRIOS: A primeira etapa TEM QUE SER do tipo "Início". A última etapa TEM QUE SER do tipo "Fim".
-    2. PROIBIDO BLOCOS SOLTOS: Toda etapa (exceto o "Fim") DEVE ter o campo "proxima" preenchido com o ID da etapa seguinte. NUNCA deixe o campo "proxima" vazio. Se uma etapa encerra o processo, a "proxima" dela deve apontar para o ID da etapa de "Fim".
-    3. CONDIÇÕES (SIM/NÃO): Se houver uma validação ou dúvida, crie uma "Decisão". O campo "proxima" DEVE ter as duas saídas: "ID_SIM|SIM, ID_NAO|NÃO".
+    REGRAS:
+    1. INÍCIO E FIM OBRIGATÓRIOS: A primeira etapa TEM QUE SER "Início". A última TEM QUE SER "Fim".
+    2. PROIBIDO BLOCOS SOLTOS: Toda etapa (exceto o "Fim") DEVE ter o campo "proxima" preenchido com o ID da etapa seguinte.
+    3. CONDIÇÕES (SIM/NÃO): Se houver dúvida/validação, crie uma "Decisão". O campo "proxima" DEVE ter: "ID_SIM|SIM, ID_NAO|NÃO".
     
-    EXEMPLO GABARITO PERFEITO:
-    {{
-      "fluxo": [
-        {{"id": "1", "texto": "Início do fluxo", "tipo": "Início", "raia": "Geral", "proxima": "2"}},
-        {{"id": "2", "texto": "Há saldo?", "tipo": "Decisão", "raia": "Geral", "proxima": "3|SIM, 4|NÃO"}},
-        {{"id": "3", "texto": "Paga o pedido", "tipo": "Processo", "raia": "Geral", "proxima": "5"}},
-        {{"id": "4", "texto": "Cancela pedido", "tipo": "Processo", "raia": "Geral", "proxima": "5"}},
-        {{"id": "5", "texto": "Fim do processo", "tipo": "Fim", "raia": "Geral", "proxima": ""}}
-      ]
-    }}
-    
-    Texto do usuário para analisar: {texto}
+    Texto do usuário: {texto}
     """
     try:
         completion = client.chat.completions.create(
@@ -123,7 +114,7 @@ with aba1:
     
     if st.button("✨ Gerar Fluxograma Exato", type="primary"):
         if texto.strip() != "":
-            with st.spinner("Compilando lógica sem pontas soltas..."):
+            with st.spinner("Estruturando processo..."):
                 resultado = processar_ia(texto)
                 if resultado and len(resultado) > 0:
                     st.session_state.etapas = resultado
@@ -134,7 +125,6 @@ with aba1:
             st.warning("Por favor, digite um texto.")
 
 with aba2:
-    st.info("💡 **Dica:** Para dividir caminhos, use `ID|SIM, ID|NÃO` na coluna Próxima.")
     st.session_state.etapas = st.data_editor(
         st.session_state.etapas, 
         use_container_width=True, 
